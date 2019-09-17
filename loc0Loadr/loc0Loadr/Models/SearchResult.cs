@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using loc0Loadr.Enums;
 using Newtonsoft.Json.Linq;
 
 namespace loc0Loadr.Models

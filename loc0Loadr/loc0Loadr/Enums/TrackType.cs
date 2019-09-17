@@ -1,4 +1,4 @@
-﻿namespace loc0Loadr.Models
+﻿namespace loc0Loadr.Enums
 {
     internal enum TrackType
     {
