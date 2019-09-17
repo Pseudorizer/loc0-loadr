@@ -138,7 +138,7 @@ namespace loc0Loadr
             var downloadQuality = _deezerFunctions.GetAudioQuality(trackData, audioQuality);
             
             // album info
-            if (trackData["ALB_ID"].Value<string>() == "0")
+            if (trackData["ALB_ID"].Value<int>() == 0)
             {
                 // do something later on
             }
@@ -161,18 +161,18 @@ namespace loc0Loadr
 
             if (trackData["PHYSICAL_RELEASE_DATE"] == null && albumData?["DATA"]?["PHYSICAL_RELEASE_DATE"] != null)
             {
-                trackData["PHYSICAL_RELEASE_DATE"] = albumData["DATA"]?["PHYSICAL_RELEASE_DATE"]?.Value<string>();
+                trackData["PHYSICAL_RELEASE_DATE"] = albumData["DATA"]["PHYSICAL_RELEASE_DATE"].Value<string>();
             }
 
             if (albumData?["SONGS"]?["data"].Children().Last()["DISK_NUMBER"] != null)
             {
                 trackData["NUMBER_OF_DISKS"] =
-                    albumData["SONGS"]?["data"].Children().Last()["DISK_NUMBER"].Value<string>();
+                    albumData["SONGS"]["data"].Children().Last()["DISK_NUMBER"].Value<string>();
             }
 
             if (trackData["ART_NAME"] == null && albumData?["DATA"]?["ART_NAME"] != null)
             {
-                trackData["ART_NAME"] = albumData["DATA"]?["ART_NAME"].Value<string>();
+                trackData["ART_NAME"] = albumData["DATA"]["ART_NAME"].Value<string>();
             }
 
             var e = JsonConvert.SerializeObject(trackData);
