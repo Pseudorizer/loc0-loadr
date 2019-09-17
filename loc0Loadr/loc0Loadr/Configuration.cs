@@ -37,13 +37,13 @@ namespace loc0Loadr
 
         public static bool UpdateConfig(string keyToUpdate, string newValue)
         {
-            try
+            if (_configFile.ContainsKey(keyToUpdate))
             {
                 _configFile[keyToUpdate] = newValue;
             }
-            catch (KeyNotFoundException ex)
+            else
             {
-                Helpers.RedMessage(ex.Message);
+                Helpers.RedMessage("Key not found");
 
                 return false;
             }
