@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
+using loc0Loadr.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -13,6 +13,15 @@ namespace loc0Loadr
     { // https://www.deezer.com/ajax/gw-light.php
         private static async Task Main()
         {
+            if (!Configuration.GetConfig())
+            {
+                Environment.Exit(1);
+            }
+
+            var manager = new DownloadManager();
+
+            await manager.Run();
+
             HttpClientHandler h = new HttpClientHandler
             {
                 CookieContainer = new CookieContainer()
@@ -41,79 +50,6 @@ namespace loc0Loadr
             JObject j = JObject.Parse(g);
             var k = j["results"]["USER"]["USER_ID"].Value<string>();
             var t = JsonConvert.SerializeObject(j);
-        }
-    }
-
-    internal static class Configuration
-    {
-        private static JObject _configFile;
-        
-        public static ConfigFile GetConfig()
-        {
-            string configFilePath = Path.Join(AppContext.BaseDirectory, "config.json");
-
-            if (!File.Exists(configFilePath))
-            {
-                Helpers.RedMessage("Failed to find config.json file");
-                return null;
-            }
-
-            string configFileContent = File.ReadAllText(configFilePath);
-
-            ConfigFile configFile;
-
-            try
-            {
-                configFile = JsonConvert.DeserializeObject<ConfigFile>(configFileContent);
-                _configFile = JObject.Parse(configFilePath);
-            }
-            catch (JsonReaderException ex)
-            {
-                Helpers.RedMessage(ex.Message);
-                return null;
-            }
-
-            return configFile;
-        }
-
-        public static bool UpdateConfig(string keyToUpdate, string newValue) // change type to config file
-        {
-            try
-            {
-                _configFile[keyToUpdate] = newValue;
-            }
-            catch (KeyNotFoundException ex)
-            {
-                Helpers.RedMessage(ex.Message);
-                return false;
-            }
-
-            string configFilePath = Path.Join(AppContext.BaseDirectory, "config.json");
-
-            string configFileSerialized = JsonConvert.SerializeObject(_configFile);
-            
-            File.WriteAllText(configFilePath, configFileSerialized);
-            return true;
-        }
-    }
-
-    internal class ConfigFile
-    {
-        [JsonProperty("arl")]
-        public string Arl { get; set; }
-
-        [JsonProperty("downloadLocation")]
-        public string DownloadLocation { get; set; }
-    }
-
-    internal static class Helpers
-    {
-        public static void RedMessage(string message)
-        {
-            ConsoleColor original = Console.ForegroundColor;
-            Console.ForegroundColor = ConsoleColor.DarkRed;
-            Console.WriteLine($"\n{message}");
-            Console.ForegroundColor = original;
         }
     }
 }
