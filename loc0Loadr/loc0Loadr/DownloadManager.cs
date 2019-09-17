@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace loc0Loadr
@@ -30,8 +31,27 @@ namespace loc0Loadr
 
             while (true)
             {
+                var x = await deezerActions.Search("");
                 string url = Helpers.TakeInput("Enter URL: ");
-            }
+
+                string[] urlMatches = Regex.Split(url, @"\/(\w+)\/(\d+)"); // ty smloadr for the regex
+
+                if (urlMatches.Length < 3)
+                {
+                    Helpers.RedMessage("Invalid URL");
+                    continue;
+                }
+
+                string type = urlMatches[1];
+                string id = urlMatches[2];
+
+                switch (type)
+                {
+                    case "track":
+                        bool result = await deezerActions.StartSingleDownload(id);
+                        break;
+                }
+            } 
         }
     }
 }
