@@ -49,13 +49,7 @@ namespace loc0Loadr
 
                     JObject apiRequestJson = JObject.Parse(apiRequestBody);
 
-                    if (apiRequestJson["error"].HasValues)
-                    {
-                        foreach (JToken error in apiRequestJson["error"].Children()) // untested
-                        {
-                            Helpers.RedMessage($"Error: {error.Value<string>()}");
-                        }
-                    }
+                    apiRequestJson.DisplayDeezerErrors();
 
                     if (apiRequestJson["results"]?["USER"]?["USER_ID"].Value<int>() == 0)
                     {
@@ -103,6 +97,8 @@ namespace loc0Loadr
                     string searchContent = await searchResponse.Content.ReadAsStringAsync();
 
                     JObject searchJson = JObject.Parse(searchContent);
+                    
+                    searchJson.DisplayDeezerErrors();
 
                     IEnumerable<IGrouping<TrackType, SearchResult>> results = _deezerFunctions.ParseSearchJson(searchJson, type)
                         .GroupBy(x => x.Type);
