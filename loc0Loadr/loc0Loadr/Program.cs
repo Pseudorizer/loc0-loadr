@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Linq;
 using System.Threading.Tasks;
-using loc0Loadr.Enums;
 
 namespace loc0Loadr
 {

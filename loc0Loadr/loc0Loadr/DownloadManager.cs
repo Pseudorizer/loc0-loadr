@@ -2,7 +2,6 @@
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using loc0Loadr.Enums;
-using loc0Loadr.Models;
 
 namespace loc0Loadr
 {
