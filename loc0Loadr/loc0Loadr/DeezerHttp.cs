@@ -14,6 +14,7 @@ namespace loc0Loadr
 {
     internal class DeezerHttp
     {
+        // TODO: Potentially replace all startDownload functions with a common interface and inject that into DeezerHttp, move each style of download to its own class that takes that common class
         private readonly HttpClient _httpClient;
         private readonly DeezerFunctions _deezerFunctions;
         private string _apiToken;
@@ -135,15 +136,22 @@ namespace loc0Loadr
 
             JToken trackData = trackInfo["results"]["DATA"];
 
-            var downloadQuality = _deezerFunctions.GetAudioQuality(trackData, audioQuality);
-            
+            (AudioQuality selectedAudioQuality, int size) = _deezerFunctions.GetAudioQuality(trackData, audioQuality);
+
+            trackData["QUALITY"] = new JObject
+            {
+                [selectedAudioQuality.ToString()] = size
+            };
+
             // album info
             if (trackData["ALB_ID"].Value<int>() == 0)
             {
                 // do something later on
             }
 
-            JObject albumInfo = await GetAlbumInfo(trackData["ALB_ID"].Value<string>());
+            var albumId = trackData["ALB_ID"].Value<string>();
+
+            JObject albumInfo = await GetAlbumInfo(albumId);
             
             if (albumInfo == null)
             {
@@ -154,27 +162,12 @@ namespace loc0Loadr
 
             JToken albumData = albumInfo["results"];
 
-            if (albumData?["DATA"]?["UPC"] != null)
-            {
-                trackData["UPC"] = albumData["DATA"]["UPC"].Value<string>();
-            }
+            trackData = _deezerFunctions.AddAlbumInfo(albumData, trackData);
 
-            if (trackData["PHYSICAL_RELEASE_DATE"] == null && albumData?["DATA"]?["PHYSICAL_RELEASE_DATE"] != null)
-            {
-                trackData["PHYSICAL_RELEASE_DATE"] = albumData["DATA"]["PHYSICAL_RELEASE_DATE"].Value<string>();
-            }
+            JObject officialAlbumInfo = await GetOfficialAlbumInfo(albumId);
 
-            if (albumData?["SONGS"]?["data"].Children().Last()["DISK_NUMBER"] != null)
-            {
-                trackData["NUMBER_OF_DISKS"] =
-                    albumData["SONGS"]["data"].Children().Last()["DISK_NUMBER"].Value<string>();
-            }
-
-            if (trackData["ART_NAME"] == null && albumData?["DATA"]?["ART_NAME"] != null)
-            {
-                trackData["ART_NAME"] = albumData["DATA"]["ART_NAME"].Value<string>();
-            }
-
+            trackData = _deezerFunctions.AddOfficialAlbumInfo(officialAlbumInfo, trackData);
+            
             var e = JsonConvert.SerializeObject(trackData);
             
             return true;
@@ -227,6 +220,21 @@ namespace loc0Loadr
                 string albumBody = await albumInfoResponse.Content.ReadAsStringAsync();
                 
                 return JObject.Parse(albumBody);
+            }
+        }
+
+        private async Task<JObject> GetOfficialAlbumInfo(string id)
+        {
+            using (HttpResponseMessage albumResponse = await _httpClient.GetAsync($"https://api.deezer.com/album/{id}"))
+            {
+                if (!albumResponse.IsSuccessStatusCode)
+                {
+                    return null;
+                }
+
+                string albumResponseContent = await albumResponse.Content.ReadAsStringAsync();
+
+                return JObject.Parse(albumResponseContent);
             }
         }
     }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using loc0Loadr.Enums;
 using loc0Loadr.Models;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace loc0Loadr
@@ -79,7 +80,7 @@ namespace loc0Loadr
 
         public KeyValuePair<AudioQuality, int> GetAudioQuality(JToken data, AudioQuality chosenAudioQuality)
         {
-            var availableQualities = data.Children()
+            List<JProperty> availableQualities = data.Children()
                 .Select(x => (JProperty) x)
                 .Where(y => y.Name.Contains("filesize", StringComparison.OrdinalIgnoreCase)
                             && y.Value.Value<int>() != 0)
@@ -109,6 +110,59 @@ namespace loc0Loadr
 
             Helpers.RedMessage("Failed to find acceptable quality");
             return new KeyValuePair<AudioQuality, int>();
+        }
+
+        public JToken AddAlbumInfo(JToken albumInfo, JToken trackInfo)
+        {
+            if (albumInfo?["DATA"]?["UPC"] != null)
+            {
+                trackInfo["UPC"] = albumInfo["DATA"]["UPC"].Value<string>();
+            }
+
+            if (trackInfo["PHYSICAL_RELEASE_DATE"] == null && albumInfo?["DATA"]?["PHYSICAL_RELEASE_DATE"] != null)
+            {
+                trackInfo["PHYSICAL_RELEASE_DATE"] = albumInfo["DATA"]["PHYSICAL_RELEASE_DATE"].Value<string>();
+            }
+
+            if (albumInfo?["SONGS"]?["data"].Children().Last()["DISK_NUMBER"] != null)
+            {
+                trackInfo["NUMBER_OF_DISKS"] =
+                    albumInfo["SONGS"]["data"].Children().Last()["DISK_NUMBER"].Value<string>();
+            }
+
+            if (trackInfo["ART_NAME"] == null && albumInfo?["DATA"]?["ART_NAME"] != null)
+            {
+                trackInfo["ART_NAME"] = albumInfo["DATA"]["ART_NAME"].Value<string>();
+            }
+
+            if (albumInfo?["DATA"]?["LABEL_NAME"] != null)
+            {
+                trackInfo["ALB_LABEL"] = albumInfo["DATA"]["LABEL_NAME"].Value<string>();
+            }
+
+            if (albumInfo?["SONGS"]?["count"] != null)
+            {
+                trackInfo["ALB_NUM_TRACKS"] = albumInfo["SONGS"]["count"].Value<string>();
+            }
+
+            return trackInfo;
+        }
+
+        public JToken AddOfficialAlbumInfo(JToken officialAlbumInfo, JToken trackInfo)
+        {
+            if (trackInfo["__TYPE__"] == null && officialAlbumInfo?["record_type"] != null)
+            {
+                trackInfo["TYPE"] = officialAlbumInfo["record_type"].Value<string>();
+            }
+
+            if (officialAlbumInfo?["genres"] != null && officialAlbumInfo["genres"].HasValues)
+            {
+                trackInfo["GENRES"] = officialAlbumInfo["genres"];
+            }
+            
+            var e = JsonConvert.SerializeObject(trackInfo);
+
+            return trackInfo;
         }
     }
 }

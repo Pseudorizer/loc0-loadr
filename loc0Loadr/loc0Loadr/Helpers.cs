@@ -134,5 +134,14 @@ namespace loc0Loadr
 
             return (AudioQuality) intId - 1;
         }
+
+        public static T TryAddTokenValue<T>(JToken tokenToSearch, string jPath)
+        {
+            JToken selectedToken = tokenToSearch.SelectToken(jPath);
+
+            return selectedToken == null
+                ? default
+                : selectedToken.Value<T>();
+        }
     }
 }
