@@ -180,9 +180,9 @@ namespace loc0Loadr
 
             string downloadUrl = EncryptionHandler.GetDownloadUrl(trackData);
 
-            byte[] j = await DownloadTrack(downloadUrl);
+            byte[] encryptedTrack = await DownloadTrack(downloadUrl);
             
-            EncryptionHandler.DecryptTrack(j, trackData);
+            byte[] decryptedTrack = EncryptionHandler.DecryptTrack(encryptedTrack, trackData);
 
             var e = JsonConvert.SerializeObject(trackData);
 
@@ -280,7 +280,7 @@ namespace loc0Loadr
             return $"https://e-cdns-proxy-{cdn}.dzcdn.net/mobile/1/{encryptedFilename}";
         }
 
-        public static void DecryptTrack(byte[] downloadBytes, JToken trackInfo)
+        public static byte[] DecryptTrack(byte[] downloadBytes, JToken trackInfo)
         {
             string blowfishKey = GetBlowfishKey(trackInfo);
             byte[] keyBytes = Encoding.UTF8.GetBytes(blowfishKey);
