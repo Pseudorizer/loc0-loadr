@@ -177,11 +177,9 @@ namespace loc0Loadr
 
             trackInfo = _deezerFunctions.AddOfficialAlbumInfo(officialAlbumInfo, trackInfo);
 
-            bool downloadResult = await BeginDownload(trackInfo);
-
             var e = JsonConvert.SerializeObject(trackInfo);
-
-            return true;
+            
+            return await BeginDownload(trackInfo);
         }
 
         public async Task<bool> DownloadMultiple(string id, string type, AudioQuality audioQuality)
@@ -189,7 +187,7 @@ namespace loc0Loadr
             switch (type)
             {
                 case "album":
-                    JToken albumInfo = await GetAlbumInfo(id);
+                    JObject albumInfo = await GetAlbumInfo(id);
                     albumInfo.DisplayDeezerErrors();
 
                     JToken albumData = albumInfo["results"]["DATA"];
@@ -200,6 +198,12 @@ namespace loc0Loadr
 
                         var f = await DownloadTrack(trackId, audioQuality, track, albumInfo);
                     }
+                    break;
+                case "playlist":
+                    JObject playlistInfo = await GetPlaylistInfo(id);
+
+                    var e = JsonConvert.SerializeObject(playlistInfo);
+                    
                     break;
             }
 
@@ -270,6 +274,37 @@ namespace loc0Loadr
                 string albumBody = await albumInfoResponse.Content.ReadAsStringAsync();
 
                 return JObject.Parse(albumBody);
+            }
+        }
+
+        private async Task<JObject> GetPlaylistInfo(string id)
+        {
+            string queryString = await Helpers.BuildDeezerApiQueryString(_apiToken, "deezer.pagePlaylist");
+            string url = $"{Helpers.ApiUrl}?{queryString}";
+
+            string bodyData = JsonConvert.SerializeObject(new
+            {
+                playlist_id = id,
+                lang = "en",
+                nb = -1,
+                start = 0,
+                tab = 0,
+                tags = true,
+                header = true
+            });
+            
+            var body = new StringContent(bodyData, Encoding.UTF8, "application/json");
+
+            using (HttpResponseMessage playlistInfoResponse = await _httpClient.PostAsync(url, body))
+            {
+                if (!playlistInfoResponse.IsSuccessStatusCode)
+                {
+                    return null;
+                }
+
+                string playlistBody = await playlistInfoResponse.Content.ReadAsStringAsync();
+                
+                return JObject.Parse(playlistBody);
             }
         }
 
