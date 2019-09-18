@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using loc0Loadr.Enums;
 using Newtonsoft.Json.Linq;
@@ -142,6 +144,28 @@ namespace loc0Loadr
             return selectedToken == null
                 ? default
                 : selectedToken.Value<T>();
+        }
+
+        public static string SanitseString(this string word)
+        {
+            word = word.Trim();
+            
+            var invalidChars = Path.GetInvalidFileNameChars();
+            word = string.Join("_", word.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+
+            word = Regex.Replace(word, @"\s(\s+)", "$1");
+
+            return word;
+        }
+
+        public static string PadNumber(this string word)
+        {
+            if (int.Parse(word) < 10)
+            {
+                return $"0{word}";
+            }
+
+            return word;
         }
     }
 }

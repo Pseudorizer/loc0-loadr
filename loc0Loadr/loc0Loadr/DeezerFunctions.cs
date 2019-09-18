@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using loc0Loadr.Enums;
 using loc0Loadr.Models;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace loc0Loadr
@@ -78,8 +78,8 @@ namespace loc0Loadr
             return null;
         }
 
-        public KeyValuePair<AudioQuality, int> GetAudioQuality(JToken data, AudioQuality chosenAudioQuality)
-        {
+        public ChosenAudioQuality GetAudioQuality(JToken data, AudioQuality chosenAudioQuality)
+        { // BUG: this doesn't work properly, we can fix this in time
             List<JProperty> availableQualities = data.Children()
                 .Select(x => (JProperty) x)
                 .Where(y => y.Name.Contains("filesize", StringComparison.OrdinalIgnoreCase)
@@ -97,9 +97,14 @@ namespace loc0Loadr
                     {
                         if (Helpers.KeyToAudioQuality[availableQuality.Name] == chosenAudioQuality)
                         {
-                            return new KeyValuePair<AudioQuality, int>(
-                                chosenAudioQuality,
-                                availableQuality.Value.Value<int>());
+                            return new ChosenAudioQuality
+                            {
+                                Extension = chosenAudioQuality == AudioQuality.Flac
+                                    ? "flac"
+                                    : "mp3",
+                                AudioEnumId = (int) chosenAudioQuality,
+                                Size = availableQuality.Value.Value<long>()
+                            };
                         }
                     }
                 }
@@ -109,7 +114,7 @@ namespace loc0Loadr
             }
 
             Helpers.RedMessage("Failed to find acceptable quality");
-            return new KeyValuePair<AudioQuality, int>();
+            return null;
         }
 
         public JToken AddAlbumInfo(JToken albumInfo, JToken trackInfo)
@@ -150,19 +155,68 @@ namespace loc0Loadr
 
         public JToken AddOfficialAlbumInfo(JToken officialAlbumInfo, JToken trackInfo)
         {
-            if (trackInfo["__TYPE__"] == null && officialAlbumInfo?["record_type"] != null)
+            if (officialAlbumInfo?["record_type"] != null)
             {
-                trackInfo["TYPE"] = officialAlbumInfo["record_type"].Value<string>();
+                trackInfo["__TYPE__"] = officialAlbumInfo["record_type"].Value<string>();
             }
 
             if (officialAlbumInfo?["genres"] != null && officialAlbumInfo["genres"].HasValues)
             {
                 trackInfo["GENRES"] = officialAlbumInfo["genres"];
             }
-            
-            var e = JsonConvert.SerializeObject(trackInfo);
 
             return trackInfo;
+        }
+        
+        public string BuildSaveLocation(JToken trackInfo)
+        {
+            var artist = trackInfo["ART_NAME"].Value<string>();
+            artist = artist.SanitseString();
+
+            var albumType = trackInfo["__TYPE__"].Value<string>();
+            albumType = albumType.SanitseString();
+
+            if (albumType == "ep")
+            {
+                albumType = "EP";
+            }
+            else
+            {
+                albumType = char.ToUpper(albumType[0]) + albumType.Substring(1); 
+            }
+
+            var albumTitle = trackInfo["ALB_TITLE"].Value<string>();
+            albumTitle = albumTitle.SanitseString();
+
+            if (string.IsNullOrWhiteSpace(albumTitle))
+            {
+                albumTitle = "Unknown Album";
+            }
+
+            var title = trackInfo["SNG_TITLE"].Value<string>();
+            title = title.SanitseString();
+
+            var discNumber = trackInfo["DISK_NUMBER"].Value<string>();
+            discNumber = discNumber.SanitseString().PadNumber();
+
+            var trackIndex = trackInfo["TRACK_NUMBER"].Value<string>();
+            trackIndex = trackIndex.SanitseString().PadNumber();
+
+            var downloadPath = Configuration.GetValue<string>("downloadLocation");
+
+            var extension = trackInfo["QUALITY"]["Extension"].Value<string>();
+            string filename = $"{trackIndex} - {title}.{extension}";
+
+            string dirPath = $@"{artist}\{albumTitle} ({albumType})\";
+
+            if (trackInfo["NUMBER_OF_DISKS"].Value<int>() > 1)
+            {
+                dirPath += $"Disc {discNumber}";
+            }
+
+            string saveLocation = Path.Combine(downloadPath, dirPath, filename);
+
+            return saveLocation;
         }
     }
 }
