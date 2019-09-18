@@ -10,7 +10,7 @@ using Org.BouncyCastle.Crypto.Parameters;
 namespace loc0Loadr
 {
     internal static class EncryptionHandler
-    {
+    { // all credit for the actual logic goes to the devs at smloadr, this is just my implementation
         public static string GetDownloadUrl(JToken trackInfo)
         {
             char cdn = trackInfo["MD5_ORIGIN"].Value<string>()[0];
@@ -44,18 +44,21 @@ namespace loc0Loadr
                     var blowfishEngine = new BlowfishEngine();
                     var cipher = new PaddedBufferedBlockCipher(new CbcBlockCipher(blowfishEngine), new ZeroBytePadding());
                     var keyParameter = new KeyParameter(keyBytes);
-                    //var parameters = new ParametersWithIV(keyParameter, new byte [] {0, 1, 2, 3, 4, 5, 6, 7});
-                    cipher.Init(false, keyParameter);
+                    var parameters = new ParametersWithIV(keyParameter, new byte [] {0, 1, 2, 3, 4, 5, 6, 7});
+                    cipher.Init(false, parameters);
 
                     byte[] output = new byte[cipher.GetOutputSize(encryptedChunk.Length)];
                     int len = cipher.ProcessBytes(encryptedChunk, 0, encryptedChunk.Length, output, 0);
-                    cipher.DoFinal(output);
-                    Buffer.BlockCopy(output, 0, encryptedChunk, progress, output.Length);
+                    cipher.DoFinal(output, len);
+                    Buffer.BlockCopy(output, 0, encryptedChunk, 0, output.Length);
                 }
+                
                 Buffer.BlockCopy(encryptedChunk, 0, decryptedBuffer, progress, encryptedChunk.Length);
 
                 progress += chunkSize;
             }
+            
+            return decryptedBuffer;
         }
 
         private static string GetEncryptedFilename(JToken trackInfo)
