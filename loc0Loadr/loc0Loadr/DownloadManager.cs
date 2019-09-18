@@ -56,7 +56,7 @@ namespace loc0Loadr
         private async Task DownloadFromUrl(AudioQuality quality)
         {
             string url =
-                "https://www.deezer.com/track/128453011?utm_source=deezer&utm_content=track-128453011&utm_term=1929698582_1568797821&utm_medium=web"; //Helpers.TakeInput("Enter URL: ");
+                "https://www.deezer.com/album/106778472?utm_source=deezer&utm_content=album-106778472&utm_term=1929698582_1568844741&utm_medium=web"; //Helpers.TakeInput("Enter URL: ");
 
             string[] urlMatches = Regex.Split(url, @"\/(\w+)\/(\d+)"); // ty smloadr for the regex
 
@@ -68,14 +68,20 @@ namespace loc0Loadr
 
             string type = urlMatches[1];
             string id = urlMatches[2];
+
+            var result = false;
             
             switch (type)
             {
                 case "track":
-                    bool result = await _deezerHttp.StartSingleDownload(id, quality);
+                    result = await _deezerHttp.DownloadTrack(id, quality);
                     break;
+                case "playlist":
                 case "album":
-                    
+                    result = await _deezerHttp.DownloadMultiple(id, type, quality);
+                    break;
+                default:
+                    result = false;
                     break;
             }
         }

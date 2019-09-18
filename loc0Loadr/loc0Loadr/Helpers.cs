@@ -114,7 +114,7 @@ namespace loc0Loadr
             }
         }
 
-        public static void DisplayDeezerErrors(this JObject json)
+        public static void DisplayDeezerErrors(this JToken json)
         {
             if (json["error"] != null && json["error"].HasValues)
             {

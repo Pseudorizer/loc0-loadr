@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using loc0Loadr.Enums;
@@ -126,59 +127,96 @@ namespace loc0Loadr
             return "";
         }
 
-        public async Task<bool> StartSingleDownload(string id, AudioQuality audioQuality)
+        public async Task<bool> DownloadTrack(string id, AudioQuality audioQuality, JToken trackInfo = null, JToken albumInfo = null)
         {
             // once this is done, we'll extract these to smaller methods as this does not fit under "start download"
             //track info
-            JObject trackInfo = await GetSingleTrackInfo(id);
-
             if (trackInfo == null)
             {
-                return false;
+                trackInfo = await GetSingleTrackInfo(id);
+
+                if (trackInfo == null)
+                {
+                    return false;
+                }
+
+                trackInfo = trackInfo["results"]["DATA"];
             }
 
             trackInfo.DisplayDeezerErrors();
 
-            JToken trackData = trackInfo["results"]["DATA"];
+            ChosenAudioQuality chosenAudioQuality = _deezerFunctions.GetAudioQuality(trackInfo, audioQuality);
 
-            ChosenAudioQuality chosenAudioQuality = _deezerFunctions.GetAudioQuality(trackData, audioQuality);
-
-            trackData["QUALITY"] = JToken.FromObject(chosenAudioQuality);
+            trackInfo["QUALITY"] = JToken.FromObject(chosenAudioQuality);
 
             // album info
-            if (trackData["ALB_ID"].Value<int>() == 0)
+            if (trackInfo["ALB_ID"].Value<int>() == 0)
             {
                 // do something later on
             }
 
-            var albumId = trackData["ALB_ID"].Value<string>();
-
-            JObject albumInfo = await GetAlbumInfo(albumId);
+            var albumId = trackInfo["ALB_ID"].Value<string>();
 
             if (albumInfo == null)
             {
-                return false;
+                albumInfo = await GetAlbumInfo(albumId);
+                
+                if (albumInfo == null)
+                {
+                    return false;
+                }
             }
 
             albumInfo.DisplayDeezerErrors();
 
             JToken albumData = albumInfo["results"];
 
-            trackData = _deezerFunctions.AddAlbumInfo(albumData, trackData);
+            trackInfo = _deezerFunctions.AddAlbumInfo(albumData, trackInfo);
 
             JObject officialAlbumInfo = await GetOfficialAlbumInfo(albumId);
 
-            trackData = _deezerFunctions.AddOfficialAlbumInfo(officialAlbumInfo, trackData);
+            trackInfo = _deezerFunctions.AddOfficialAlbumInfo(officialAlbumInfo, trackInfo);
 
-            string downloadPath = _deezerFunctions.BuildSaveLocation(trackData);
+            bool downloadResult = await BeginDownload(trackInfo);
 
-            string downloadUrl = EncryptionHandler.GetDownloadUrl(trackData);
+            var e = JsonConvert.SerializeObject(trackInfo);
+
+            return true;
+        }
+
+        public async Task<bool> DownloadMultiple(string id, string type, AudioQuality audioQuality)
+        {
+            switch (type)
+            {
+                case "album":
+                    JToken albumInfo = await GetAlbumInfo(id);
+                    albumInfo.DisplayDeezerErrors();
+
+                    JToken albumData = albumInfo["results"]["DATA"];
+                    
+                    foreach (JToken track in albumInfo["results"]["SONGS"]["data"].Children())
+                    {
+                        var trackId = track["SNG_ID"].Value<string>();
+
+                        var f = await DownloadTrack(trackId, audioQuality, track, albumInfo);
+                    }
+                    break;
+            }
+
+            return true;
+        }
+
+        private async Task<bool> BeginDownload(JToken trackInfo)
+        {
+            string downloadPath = _deezerFunctions.BuildSaveLocation(trackInfo);
+
+            string downloadUrl = EncryptionHandler.GetDownloadUrl(trackInfo);
 
             byte[] encryptedTrack = await DownloadTrack(downloadUrl);
             
-            byte[] decryptedTrack = EncryptionHandler.DecryptTrack(encryptedTrack, trackData);
-
-            var e = JsonConvert.SerializeObject(trackData);
+            byte[] decryptedTrack = EncryptionHandler.DecryptTrack(encryptedTrack, trackInfo);
+            
+            File.WriteAllBytes("M:\\Music\\DOWNLOADS\\sun.flac", decryptedTrack);
 
             return true;
         }
