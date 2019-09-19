@@ -78,6 +78,9 @@ namespace loc0Loadr
             return null;
         }
 
+        // the way this works is that if the wanted quality was not found, the next best will be tried and so on
+        // until it wraps around to the start and tries the lower quality options, starting at highest lower quality
+        // I.E. 320 -> FLAC -> 256 -> 128 -> null
         public ChosenAudioQuality GetAudioQuality(JToken data, AudioQuality audioQuality)
         {
             var enumIds = new List<int> {1, 5, 3, 9};
@@ -103,7 +106,7 @@ namespace loc0Loadr
 
                 if (newQuality != null)
                 {
-                    return newQuality;
+                    //return newQuality;
                 }
             }
 
@@ -120,7 +123,7 @@ namespace loc0Loadr
 
                 if (newQuality != null)
                 {
-                    return newQuality;
+                    //return newQuality;
                 }
                 
             }
