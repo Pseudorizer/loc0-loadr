@@ -92,7 +92,7 @@ namespace loc0Loadr
 
             ChosenAudioQuality desiredQuality = SearchForQuality(availableQualities, audioQuality);
 
-            if (desiredQuality != null)
+            if (desiredQuality == null)
             {
                 foreach (int enumId in enumIds)
                 {
