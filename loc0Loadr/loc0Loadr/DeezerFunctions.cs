@@ -80,32 +80,52 @@ namespace loc0Loadr
 
         public ChosenAudioQuality GetAudioQuality(JToken data, AudioQuality audioQuality)
         {
-            var enumIds = new List<int> {9, 3, 5, 1};
+            var enumIds = new List<int> {1, 5, 3, 9};
 
-            enumIds.Remove((int) audioQuality);
-            
             List<JProperty> availableQualities = data.Children()
                 .Select(x => (JProperty) x)
                 .Where(y => y.Name.Contains("filesize", StringComparison.OrdinalIgnoreCase)
                             && y.Value.Value<int>() != 0)
                 .ToList();
 
-            ChosenAudioQuality desiredQuality = SearchForQuality(availableQualities, audioQuality);
+            int startIndex = enumIds.IndexOf((int) audioQuality);
 
-            if (desiredQuality == null)
+            if (audioQuality == AudioQuality.Flac)
             {
-                foreach (int enumId in enumIds)
-                {
-                    ChosenAudioQuality newQuality = SearchForQuality(availableQualities, (AudioQuality) enumId);
+                enumIds.Reverse();
+                startIndex = 0;
+            }
 
-                    if (newQuality != null)
-                    {
-                        return newQuality;
-                    }
+            for (int index = startIndex; index < enumIds.Count; index++)
+            {
+                int enumId = enumIds[index];
+                ChosenAudioQuality newQuality = SearchForQuality(availableQualities, (AudioQuality) enumId);
+
+                if (newQuality != null)
+                {
+                    return newQuality;
                 }
             }
 
-            return desiredQuality;
+            if (audioQuality != AudioQuality.Flac)
+            {
+                enumIds.RemoveRange(startIndex, 4 - startIndex);
+                enumIds.Reverse();
+            }
+
+            for (var i = 0; i < startIndex; i++)
+            {
+                int enumId = enumIds[i];
+                ChosenAudioQuality newQuality = SearchForQuality(availableQualities, (AudioQuality) enumId);
+
+                if (newQuality != null)
+                {
+                    return newQuality;
+                }
+                
+            }
+
+            return null;
         }
 
         private ChosenAudioQuality SearchForQuality(IEnumerable<JProperty> qualities, AudioQuality audioQuality)
