@@ -145,6 +145,12 @@ namespace loc0Loadr
 
             ChosenAudioQuality chosenAudioQuality = _deezerFunctions.GetAudioQuality(trackInfo, audioQuality);
 
+            if (chosenAudioQuality == null)
+            {
+                Helpers.RedMessage("Was not able to find a valid quality");
+                return false;
+            }
+
             trackInfo["QUALITY"] = JToken.FromObject(chosenAudioQuality);
 
             // album info
