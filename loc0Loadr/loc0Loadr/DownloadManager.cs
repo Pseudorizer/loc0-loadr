@@ -56,7 +56,7 @@ namespace loc0Loadr
         private async Task DownloadFromUrl(AudioQuality quality)
         {
             string url =
-                "https://www.deezer.com/playlist/915487765?utm_source=deezer&utm_content=playlist-915487765&utm_term=1929698582_1568848198&utm_medium=web"; //Helpers.TakeInput("Enter URL: ");
+                "https://www.deezer.com/track/128453011?utm_source=deezer&utm_content=track-128453011&utm_term=1929698582_1568745082&utm_medium=web"; //Helpers.TakeInput("Enter URL: ");
 
             string[] urlMatches = Regex.Split(url, @"\/(\w+)\/(\d+)"); // ty smloadr for the regex
 

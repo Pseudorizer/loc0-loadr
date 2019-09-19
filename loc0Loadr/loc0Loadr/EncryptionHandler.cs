@@ -25,7 +25,7 @@ namespace loc0Loadr
             byte[] keyBytes = Encoding.UTF8.GetBytes(blowfishKey);
             long streamLength = downloadBytes.Length;
 
-            byte[] decryptedBuffer = new byte[streamLength];
+            byte[] decryptedBytes = new byte[streamLength];
             var chunkSize = 2048;
             var progress = 0;
 
@@ -39,6 +39,7 @@ namespace loc0Loadr
                 byte[] encryptedChunk = new byte[chunkSize];
                 Buffer.BlockCopy(downloadBytes, progress, encryptedChunk, 0, chunkSize);
 
+                // this will only decrypt every third chunk and if it's not at the end
                 if (progress % (chunkSize * 3) == 0 && chunkSize == 2048)
                 {
                     var blowfishEngine = new BlowfishEngine();
@@ -53,12 +54,12 @@ namespace loc0Loadr
                     Buffer.BlockCopy(output, 0, encryptedChunk, 0, output.Length);
                 }
                 
-                Buffer.BlockCopy(encryptedChunk, 0, decryptedBuffer, progress, encryptedChunk.Length);
+                Buffer.BlockCopy(encryptedChunk, 0, decryptedBytes, progress, encryptedChunk.Length);
 
                 progress += chunkSize;
             }
-            
-            return decryptedBuffer;
+
+            return decryptedBytes;
         }
 
         private static string GetEncryptedFilename(JToken trackInfo)
