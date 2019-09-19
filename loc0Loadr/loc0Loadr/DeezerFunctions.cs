@@ -106,7 +106,7 @@ namespace loc0Loadr
 
                 if (newQuality != null)
                 {
-                    //return newQuality;
+                    return newQuality;
                 }
             }
 
@@ -123,7 +123,7 @@ namespace loc0Loadr
 
                 if (newQuality != null)
                 {
-                    //return newQuality;
+                    return newQuality;
                 }
                 
             }
