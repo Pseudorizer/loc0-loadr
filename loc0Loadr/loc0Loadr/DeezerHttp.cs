@@ -214,6 +214,11 @@ namespace loc0Loadr
 
             string downloadUrl = EncryptionHandler.GetDownloadUrl(trackInfo);
 
+            var title = trackInfo["SNG_TITLE"].Value<string>();
+            var artist = trackInfo["ART_NAME"].Value<string>();
+            
+            Console.WriteLine($"Downloading ${artist} - {title}");
+
             byte[] encryptedTrack = await DownloadTrack(downloadUrl);
             
             byte[] decryptedTrack = EncryptionHandler.DecryptTrack(encryptedTrack, trackInfo["SNG_ID"].Value<string>());

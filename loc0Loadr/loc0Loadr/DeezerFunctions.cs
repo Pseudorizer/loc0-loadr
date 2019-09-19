@@ -78,43 +78,50 @@ namespace loc0Loadr
             return null;
         }
 
-        public ChosenAudioQuality GetAudioQuality(JToken data, AudioQuality chosenAudioQuality)
-        { // BUG: this doesn't work properly, we can fix this in time
+        public ChosenAudioQuality GetAudioQuality(JToken data, AudioQuality audioQuality)
+        {
+            var enumIds = new List<int> {9, 3, 5, 1};
+
+            enumIds.Remove((int) audioQuality);
+            
             List<JProperty> availableQualities = data.Children()
                 .Select(x => (JProperty) x)
                 .Where(y => y.Name.Contains("filesize", StringComparison.OrdinalIgnoreCase)
                             && y.Value.Value<int>() != 0)
                 .ToList();
 
-            var tries = 0;
-            int max = (int) chosenAudioQuality + 1;
+            ChosenAudioQuality desiredQuality = SearchForQuality(availableQualities, audioQuality);
 
-            while (tries < max)
+            if (desiredQuality != null)
             {
-                foreach (JProperty availableQuality in availableQualities)
+                foreach (int enumId in enumIds)
                 {
-                    if (Helpers.KeyToAudioQuality.ContainsKey(availableQuality.Name))
+                    ChosenAudioQuality newQuality = SearchForQuality(availableQualities, (AudioQuality) enumId);
+
+                    if (newQuality != null)
                     {
-                        if (Helpers.KeyToAudioQuality[availableQuality.Name] == chosenAudioQuality)
-                        {
-                            return new ChosenAudioQuality
-                            {
-                                Extension = chosenAudioQuality == AudioQuality.Flac
-                                    ? "flac"
-                                    : "mp3",
-                                AudioEnumId = (int) chosenAudioQuality,
-                                Size = availableQuality.Value.Value<long>()
-                            };
-                        }
+                        return newQuality;
                     }
                 }
-
-                tries++;
-                chosenAudioQuality = Helpers.GetNextAudioLevelDown(chosenAudioQuality);
             }
 
-            Helpers.RedMessage("Failed to find acceptable quality");
-            return null;
+            return desiredQuality;
+        }
+
+        private ChosenAudioQuality SearchForQuality(IEnumerable<JProperty> qualities, AudioQuality audioQuality)
+        {
+            return qualities
+                .Where(x => Helpers.KeyToAudioQuality.ContainsKey(x.Name))
+                .Where(y => Helpers.KeyToAudioQuality[y.Name] == audioQuality)
+                .Select(z => new ChosenAudioQuality
+                {
+                    Extension = audioQuality == AudioQuality.Flac
+                        ? "flac"
+                        : "mp3",
+                    AudioEnumId = (int) audioQuality,
+                    Size = z.Value.Value<long>()
+                })
+                .FirstOrDefault();
         }
 
         public JToken AddAlbumInfo(JToken albumInfo, JToken trackInfo)

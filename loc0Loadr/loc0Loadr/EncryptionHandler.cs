@@ -36,7 +36,7 @@ namespace loc0Loadr
                     chunkSize = (int) streamLength - progress;
                 }
 
-                byte[] encryptedChunk = new byte[chunkSize];
+                var encryptedChunk = new byte[chunkSize];
                 Buffer.BlockCopy(downloadBytes, progress, encryptedChunk, 0, chunkSize);
 
                 // this will only decrypt every third chunk and if it's not at the end
@@ -48,7 +48,7 @@ namespace loc0Loadr
                     var parameters = new ParametersWithIV(keyParameter, new byte [] {0, 1, 2, 3, 4, 5, 6, 7});
                     cipher.Init(false, parameters);
 
-                    byte[] output = new byte[cipher.GetOutputSize(encryptedChunk.Length)];
+                    var output = new byte[cipher.GetOutputSize(encryptedChunk.Length)];
                     int len = cipher.ProcessBytes(encryptedChunk, 0, encryptedChunk.Length, output, 0);
                     cipher.DoFinal(output, len);
                     Buffer.BlockCopy(output, 0, encryptedChunk, 0, output.Length);
