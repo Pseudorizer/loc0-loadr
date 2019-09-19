@@ -19,9 +19,9 @@ namespace loc0Loadr
             return $"https://e-cdns-proxy-{cdn}.dzcdn.net/mobile/1/{encryptedFilename}";
         }
 
-        public static byte[] DecryptTrack(byte[] downloadBytes, JToken trackInfo)
+        public static byte[] DecryptTrack(byte[] downloadBytes, string sngId)
         {
-            string blowfishKey = GetBlowfishKey(trackInfo);
+            string blowfishKey = GetBlowfishKey(sngId);
             byte[] keyBytes = Encoding.UTF8.GetBytes(blowfishKey);
             long streamLength = downloadBytes.Length;
 
@@ -152,16 +152,14 @@ namespace loc0Loadr
             return bytes;
         }
 
-        private static string GetBlowfishKey(JToken trackInfo)
+        private static string GetBlowfishKey(string sngId)
         {
             const string secret = "g4el58wc0zvf9na1";
             string idHashedHex;
             
             using (MD5 md5 = MD5.Create())
             {
-                var id = trackInfo["SNG_ID"].Value<string>();
-
-                byte[] idBytes = Encoding.ASCII.GetBytes(id);
+                byte[] idBytes = Encoding.ASCII.GetBytes(sngId);
                 byte[] idHashed = md5.ComputeHash(idBytes);
                 
                 var hexBuilder = new StringBuilder();

@@ -216,7 +216,7 @@ namespace loc0Loadr
 
             byte[] encryptedTrack = await DownloadTrack(downloadUrl);
             
-            byte[] decryptedTrack = EncryptionHandler.DecryptTrack(encryptedTrack, trackInfo);
+            byte[] decryptedTrack = EncryptionHandler.DecryptTrack(encryptedTrack, trackInfo["SNG_ID"].Value<string>());
             
             File.WriteAllBytes("M:\\Music\\DOWNLOADS\\sun.flac", decryptedTrack);
 
