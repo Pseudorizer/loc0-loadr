@@ -1,0 +1,6 @@
+* Add functions for writing MP3/FLAC metadata
+* Probably refactor trackInfo to group all metadata tags into a tag array for easy iteration
+* Fully test album downloading and check if all tags aquired
+* Write tag collection for playlists
+* Once complete and stable export functonality to class library
+* Write headless server and API for interacting with the library
