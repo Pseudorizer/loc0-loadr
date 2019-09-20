@@ -6,4 +6,4 @@
 * In rewrite, implement easy-to-use retry system for failures, I.E. I allow getting trackInfo to be attempted 3 times
 * Create base class that all main classes inherit, base class will contain a bool for whether to log info in a debug-like mode
 * Once satisfied with the codebase export functonality to class library
-* Write headless server and API for interacting with the library
+* Write headless server client and API for interacting with the library
