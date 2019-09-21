@@ -1,6 +1,9 @@
 * Add functions for writing MP3/FLAC metadata
-* Probably refactor trackInfo to group all metadata tags into a tag array for easy iteration
-* Fully test album downloading and check if all tags aquired
 * Write tag collection for playlists
-* Once complete and stable export functonality to class library
-* Write headless server and API for interacting with the library
+* Figure out if i can decrypt tracks in parallel, I.E. X amount of tasks decrypting Y amount of chunks at the same time and then putting it back together
+* Try to add progress output for downloading
+* Most likely rewrite most of the code once the core funtionality is complete
+* In rewrite, implement easy-to-use retry system for failures, I.E. I allow getting trackInfo to be attempted 3 times
+* Create base class that all main classes inherit, base class will contain a bool for whether to log info in a debug-like mode
+* Once satisfied with the codebase export functonality to class library
+* Write headless server client and API for interacting with the library
