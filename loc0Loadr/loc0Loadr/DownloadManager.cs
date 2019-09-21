@@ -36,12 +36,12 @@ namespace loc0Loadr
 
             while (true)
             {
-                //string choice = Helpers.TakeInput(1, 2, "1 - Download via URL", "2 - Search for media");
-                //string qualityChoice = Helpers.TakeInput(1, 4, "1 - MP3 128", "2 - MP3 256", "3 - MP3 320", "4 - FLAC");
+                string choice = Helpers.TakeInput(1, 2, "Download via URL", "Search for media");
+                string qualityChoice = Helpers.TakeInput(1, 4, "MP3 128", "MP3 256", "MP3 320", "FLAC");
 
-                AudioQuality quality = AudioQuality.Flac; //Helpers.InputToAudioQuality[qualityChoice];
+                AudioQuality quality = Helpers.InputToAudioQuality[qualityChoice];
 
-                switch ("1")
+                switch (choice)
                 {
                     case "1":
                         await DownloadFromUrl(quality);
@@ -55,8 +55,7 @@ namespace loc0Loadr
 
         private async Task DownloadFromUrl(AudioQuality quality)
         {
-            string url =
-                "https://www.deezer.com/track/128453011?utm_source=deezer&utm_content=track-128453011&utm_term=1929698582_1568745082&utm_medium=web"; //Helpers.TakeInput("Enter URL: ");
+            string url = Helpers.TakeInput("Enter URL: ");
 
             string[] urlMatches = Regex.Split(url, @"\/(\w+)\/(\d+)"); // ty smloadr for the regex
 
@@ -83,6 +82,15 @@ namespace loc0Loadr
                 default:
                     result = false;
                     break;
+            }
+
+            if (result)
+            {
+                Helpers.GreenMessage("Success");
+            }
+            else
+            {
+                Helpers.RedMessage("Failed");
             }
         }
 

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using loc0Loadr.Enums;
 using loc0Loadr.Models;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace loc0Loadr
@@ -142,9 +143,25 @@ namespace loc0Loadr
                         ? "flac"
                         : "mp3",
                     AudioEnumId = (int) audioQuality,
+                    QualityForOutput = Helpers.AudioQualityToOutputString[audioQuality],
                     Size = z.Value.Value<long>()
                 })
                 .FirstOrDefault();
+        }
+
+        public JToken AddOfficialTrackInfo(JToken officialTrackInfo, JToken trackInfo)
+        {
+            if (officialTrackInfo["bpm"] != null)
+            {
+                trackInfo["BPM"] = officialTrackInfo["bpm"].Value<string>();
+            }
+
+            if (officialTrackInfo["gain"] != null)
+            {
+                trackInfo["GAIN"] = officialTrackInfo["gain"].Value<string>();
+            }
+
+            return trackInfo;
         }
 
         public JToken AddAlbumInfo(JToken albumInfo, JToken trackInfo)
@@ -165,7 +182,7 @@ namespace loc0Loadr
                     albumInfo["SONGS"]["data"].Children().Last()["DISK_NUMBER"].Value<string>();
             }
 
-            if (trackInfo["ART_NAME"] == null && albumInfo?["DATA"]?["ART_NAME"] != null)
+            if (trackInfo["ART_NAME"] == null || albumInfo?["DATA"]?["ART_NAME"].Value<string>() == "Various Artists" && albumInfo["DATA"]?["ART_NAME"] != null)
             {
                 trackInfo["ART_NAME"] = albumInfo["DATA"]["ART_NAME"].Value<string>();
             }
@@ -192,30 +209,34 @@ namespace loc0Loadr
 
             if (officialAlbumInfo?["genres"] != null && officialAlbumInfo["genres"].HasValues)
             {
-                trackInfo["GENRES"] = officialAlbumInfo["genres"];
+                trackInfo["GENRES"] = officialAlbumInfo["genres"]["data"];
             }
-
+            
             return trackInfo;
         }
         
         public string BuildSaveLocation(JToken trackInfo)
         {
-            var artist = trackInfo["ART_NAME"].Value<string>();
+            var artist = trackInfo["ART_NAME"]?.Value<string>();
             artist = artist.SanitseString();
 
-            var albumType = trackInfo["__TYPE__"].Value<string>();
+            var albumType = trackInfo["__TYPE__"]?.Value<string>();
             albumType = albumType.SanitseString();
 
             if (albumType == "ep")
             {
                 albumType = "EP";
             }
+            else if (string.Equals(albumType, "compile", StringComparison.OrdinalIgnoreCase))
+            {
+                albumType = "Compilation";
+            }
             else
             {
                 albumType = char.ToUpper(albumType[0]) + albumType.Substring(1); 
             }
 
-            var albumTitle = trackInfo["ALB_TITLE"].Value<string>();
+            var albumTitle = trackInfo["ALB_TITLE"]?.Value<string>();
             albumTitle = albumTitle.SanitseString();
 
             if (string.IsNullOrWhiteSpace(albumTitle))
@@ -223,23 +244,23 @@ namespace loc0Loadr
                 albumTitle = "Unknown Album";
             }
 
-            var title = trackInfo["SNG_TITLE"].Value<string>();
+            var title = trackInfo["SNG_TITLE"]?.Value<string>();
             title = title.SanitseString();
 
-            var discNumber = trackInfo["DISK_NUMBER"].Value<string>();
+            var discNumber = trackInfo["DISK_NUMBER"]?.Value<string>();
             discNumber = discNumber.SanitseString().PadNumber();
 
-            var trackIndex = trackInfo["TRACK_NUMBER"].Value<string>();
+            var trackIndex = trackInfo["TRACK_NUMBER"]?.Value<string>();
             trackIndex = trackIndex.SanitseString().PadNumber();
 
             var downloadPath = Configuration.GetValue<string>("downloadLocation");
 
-            var extension = trackInfo["QUALITY"]["Extension"].Value<string>();
+            var extension = trackInfo["QUALITY"]?["Extension"]?.Value<string>();
             string filename = $"{trackIndex} - {title}.{extension}";
 
             string dirPath = $@"{artist}\{albumTitle} ({albumType})\";
 
-            if (trackInfo["NUMBER_OF_DISKS"].Value<int>() > 1)
+            if (trackInfo["NUMBER_OF_DISKS"]?.Value<int>() > 1)
             {
                 dirPath += $"Disc {discNumber}";
             }

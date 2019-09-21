@@ -10,12 +10,15 @@ using loc0Loadr.Enums;
 using loc0Loadr.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using File = System.IO.File;
 
 namespace loc0Loadr
 {
-    internal class DeezerHttp
+    internal class DeezerHttp : IDisposable
     {
-        // TODO: Potentially replace all startDownload functions with a common interface and inject that into DeezerHttp, move each style of download to its own class that takes that common class
+        // As per usual with your first attempt, this class sucks, do you have any idea what goes on in downloadtrack???
+        // Why is a class with http in the title handling the tag collection???
+        // Why is a class with http in the title handling the iteration of songs in album???
         private readonly HttpClient _httpClient;
         private readonly DeezerFunctions _deezerFunctions;
         private string _apiToken;
@@ -52,7 +55,7 @@ namespace loc0Loadr
 
                     JObject apiRequestJson = JObject.Parse(apiRequestBody);
 
-                    apiRequestJson.DisplayDeezerErrors();
+                    apiRequestJson.DisplayDeezerErrors("API Token");
 
                     if (apiRequestJson["results"]?["USER"]?["USER_ID"].Value<int>() == 0)
                     {
@@ -101,7 +104,7 @@ namespace loc0Loadr
 
                     JObject searchJson = JObject.Parse(searchContent);
 
-                    searchJson.DisplayDeezerErrors();
+                    searchJson.DisplayDeezerErrors("Search");
 
                     IEnumerable<IGrouping<TrackType, SearchResult>> results = _deezerFunctions
                         .ParseSearchJson(searchJson, type)
@@ -129,19 +132,30 @@ namespace loc0Loadr
         {
             // once this is done, we'll extract these to smaller methods as this does not fit under "start download"
             //track info
+
+            Console.WriteLine("\nFetching info");
+            
             if (trackInfo == null)
             {
-                trackInfo = await GetSingleTrackInfo(id);
+                trackInfo = await HitUnofficialApi("deezer.pageTrack", new JObject
+                {
+                    ["SNG_ID"] = id
+                });
 
                 if (trackInfo == null)
                 {
                     return false;
                 }
 
+                if (trackInfo["results"]["LYRICS"] != null)
+                {
+                    trackInfo["results"]["DATA"]["LYRICS"] = trackInfo["results"]["LYRICS"];
+                }
+
                 trackInfo = trackInfo["results"]["DATA"];
             }
 
-            trackInfo.DisplayDeezerErrors();
+            trackInfo.DisplayDeezerErrors("Track");
 
             ChosenAudioQuality chosenAudioQuality = _deezerFunctions.GetAudioQuality(trackInfo, audioQuality);
 
@@ -153,17 +167,48 @@ namespace loc0Loadr
 
             trackInfo["QUALITY"] = JToken.FromObject(chosenAudioQuality);
 
-            // album info
-            if (trackInfo["ALB_ID"].Value<int>() == 0)
+            if (trackInfo["LYRICS"] == null)
             {
-                // do something later on
+                JObject lyrics = await HitUnofficialApi("song.getLyrics", new JObject
+                {
+                    ["sng_id"] = id
+                });
+                
+                lyrics.DisplayDeezerErrors("Lyrics");
+
+                if (lyrics["error"].Type == JTokenType.Array)
+                {
+                    trackInfo["LYRICS"] = lyrics["results"];
+                }
+                else if (lyrics["error"]["DATA_ERROR"] == null)
+                {
+                    trackInfo["LYRICS"] = lyrics["results"];
+                }
+            }
+
+            JObject officialTrackInfo = await HitOfficialApi("track", id);
+
+            if (officialTrackInfo != null)
+            {
+                trackInfo = _deezerFunctions.AddOfficialTrackInfo(officialTrackInfo, trackInfo);
+            }
+
+            // album info
+            if (trackInfo["ALB_ID"] == null || trackInfo["ALB_ID"].Value<int>() == 0 && albumInfo == null)
+            {
+                return await BeginDownload(trackInfo);
             }
 
             var albumId = trackInfo["ALB_ID"].Value<string>();
 
             if (albumInfo == null)
             {
-                albumInfo = await GetAlbumInfo(albumId);
+                albumInfo = await HitUnofficialApi("deezer.pageAlbum", new JObject
+                {
+                    ["ALB_ID"] = albumId,
+                    ["lang"] = "us",
+                    ["tab"] = 0
+                });
                 
                 if (albumInfo == null)
                 {
@@ -171,18 +216,24 @@ namespace loc0Loadr
                 }
             }
 
-            albumInfo.DisplayDeezerErrors();
+            albumInfo.DisplayDeezerErrors("Album");
 
             JToken albumData = albumInfo["results"];
 
+            if (albumData == null)
+            {
+                return await BeginDownload(trackInfo);
+            }
+
             trackInfo = _deezerFunctions.AddAlbumInfo(albumData, trackInfo);
 
-            JObject officialAlbumInfo = await GetOfficialAlbumInfo(albumId);
+            JObject officialAlbumInfo = await HitOfficialApi("album", albumId);
 
-            trackInfo = _deezerFunctions.AddOfficialAlbumInfo(officialAlbumInfo, trackInfo);
+            if (officialAlbumInfo != null)
+            {
+                trackInfo = _deezerFunctions.AddOfficialAlbumInfo(officialAlbumInfo, trackInfo);
+            }
 
-            var e = JsonConvert.SerializeObject(trackInfo);
-            
             return await BeginDownload(trackInfo);
         }
 
@@ -191,23 +242,39 @@ namespace loc0Loadr
             switch (type)
             {
                 case "album":
-                    JObject albumInfo = await GetAlbumInfo(id);
-                    albumInfo.DisplayDeezerErrors();
-
-                    JToken albumData = albumInfo["results"]["DATA"];
-                    
-                    foreach (JToken track in albumInfo["results"]["SONGS"]["data"].Children())
+                    JObject albumInfo = await HitUnofficialApi("deezer.pageAlbum", new JObject
                     {
+                        ["ALB_ID"] = id,
+                        ["lang"] = "us",
+                        ["tab"] = 0
+                    });
+                    
+                    albumInfo.DisplayDeezerErrors("Album");
+
+                    var tracks = albumInfo["results"]["SONGS"]["data"].Children().ToArray();
+
+                    for (var i = 0; i < tracks.Length; i++)
+                    {
+                        Console.WriteLine($"{i + 1}/{tracks.Length}");
+                        JToken track = tracks[i];
+                        
                         var trackId = track["SNG_ID"].Value<string>();
 
                         var f = await DownloadTrack(trackId, audioQuality, track, albumInfo);
                     }
                     break;
                 case "playlist":
-                    JObject playlistInfo = await GetPlaylistInfo(id);
+                    JObject playlistInfo = await HitUnofficialApi("deezer.pagePlaylist", new JObject
+                    {
+                        ["playlist_id"] = id,
+                        ["lang"] = "en",
+                        ["nb"] = -1,
+                        ["start"] = 0,
+                        ["tab"] = 0,
+                        ["tags"] = true,
+                        ["header"] = true
+                    });
 
-                    var e = JsonConvert.SerializeObject(playlistInfo);
-                    
                     break;
             }
 
@@ -222,104 +289,88 @@ namespace loc0Loadr
 
             var title = trackInfo["SNG_TITLE"].Value<string>();
             var artist = trackInfo["ART_NAME"].Value<string>();
+            var quality = trackInfo["QUALITY"]["QualityForOutput"].Value<string>();
             
-            Console.WriteLine($"Downloading ${artist} - {title}");
+            Console.WriteLine($"Downloading {artist} - {title} | Quality: {quality}");
 
             byte[] encryptedTrack = await DownloadTrack(downloadUrl);
             
             byte[] decryptedTrack = EncryptionHandler.DecryptTrack(encryptedTrack, trackInfo["SNG_ID"].Value<string>());
+
+            string directoryPath = Path.GetDirectoryName(downloadPath);
+
+            if (!Directory.Exists(directoryPath))
+            {
+                try
+                {
+                    Directory.CreateDirectory(directoryPath);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    return false;
+                }
+            }
+
+            try
+            {
+                File.WriteAllBytes(downloadPath, decryptedTrack);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return false;
+            }
             
-            File.WriteAllBytes("M:\\Music\\DOWNLOADS\\sun.flac", decryptedTrack);
+            string savePath = Path.Combine(directoryPath, "cover.jpg");
+
+            byte[] albumArt;
+
+            if (!File.Exists(savePath))
+            {
+                albumArt = await DownloadAlbumArt(trackInfo["ALB_PICTURE"].Value<string>(), savePath);
+            }
+            else
+            {
+                albumArt = File.ReadAllBytes(savePath);
+            }
+
+            string trackInfoSerialized = JsonConvert.SerializeObject(trackInfo);
+
+            var metadata = JsonConvert.DeserializeObject<Metadata>(trackInfoSerialized);
+
+            var metadataWriter = new MetadataWriter(metadata, downloadPath, albumArt);
+
+            bool y = metadataWriter.WriteMetaData();
 
             return true;
         }
 
-        private async Task<JObject> GetSingleTrackInfo(string id)
+        private async Task<JObject> HitUnofficialApi(string method, JObject data)
         {
-            string queryString = await Helpers.BuildDeezerApiQueryString(_apiToken, "deezer.pageTrack");
+            string queryString = await Helpers.BuildDeezerApiQueryString(_apiToken, method);
             string url = $"{Helpers.ApiUrl}?{queryString}";
 
-            string bodyData = JsonConvert.SerializeObject(new
-            {
-                SNG_ID = id
-            });
+            string bodyData = JsonConvert.SerializeObject(data);
 
             var body = new StringContent(bodyData, Encoding.UTF8, "application/json");
-
-            using (HttpResponseMessage trackInfoResponse = await _httpClient.PostAsync(url, body))
-            {
-                if (!trackInfoResponse.IsSuccessStatusCode)
-                {
-                    return null;
-                }
-
-                string trackBody = await trackInfoResponse.Content.ReadAsStringAsync();
-
-                return JObject.Parse(trackBody);
-            }
-        }
-
-        private async Task<JObject> GetAlbumInfo(string id)
-        {
-            string queryString = await Helpers.BuildDeezerApiQueryString(_apiToken, "deezer.pageAlbum");
-            string url = $"{Helpers.ApiUrl}?{queryString}";
-
-            string bodyData = JsonConvert.SerializeObject(new
-            {
-                ALB_ID = id,
-                lang = "us",
-                tab = 0
-            });
-
-            var body = new StringContent(bodyData, Encoding.UTF8, "application/json");
-
-            using (HttpResponseMessage albumInfoResponse = await _httpClient.PostAsync(url, body))
-            {
-                if (!albumInfoResponse.IsSuccessStatusCode)
-                {
-                    return null;
-                }
-
-                string albumBody = await albumInfoResponse.Content.ReadAsStringAsync();
-
-                return JObject.Parse(albumBody);
-            }
-        }
-
-        private async Task<JObject> GetPlaylistInfo(string id)
-        {
-            string queryString = await Helpers.BuildDeezerApiQueryString(_apiToken, "deezer.pagePlaylist");
-            string url = $"{Helpers.ApiUrl}?{queryString}";
-
-            string bodyData = JsonConvert.SerializeObject(new
-            {
-                playlist_id = id,
-                lang = "en",
-                nb = -1,
-                start = 0,
-                tab = 0,
-                tags = true,
-                header = true
-            });
             
-            var body = new StringContent(bodyData, Encoding.UTF8, "application/json");
-
-            using (HttpResponseMessage playlistInfoResponse = await _httpClient.PostAsync(url, body))
+            using (HttpResponseMessage apiResponse = await _httpClient.PostAsync(url, body))
             {
-                if (!playlistInfoResponse.IsSuccessStatusCode)
+                if (!apiResponse.IsSuccessStatusCode)
                 {
                     return null;
                 }
 
-                string playlistBody = await playlistInfoResponse.Content.ReadAsStringAsync();
-                
-                return JObject.Parse(playlistBody);
+                string bodyContent = await apiResponse.Content.ReadAsStringAsync();
+
+                return JObject.Parse(bodyContent);
             }
         }
 
-        private async Task<JObject> GetOfficialAlbumInfo(string id)
+        private async Task<JObject> HitOfficialApi(string path, string id)
         {
-            using (HttpResponseMessage albumResponse = await _httpClient.GetAsync($"https://api.deezer.com/album/{id}"))
+            using (HttpResponseMessage albumResponse = await _httpClient.GetAsync($"https://api.deezer.com/{path}/{id}"))
             {
                 if (!albumResponse.IsSuccessStatusCode)
                 {
@@ -343,6 +394,35 @@ namespace loc0Loadr
 
                 return await downloadResponse.Content.ReadAsByteArrayAsync();
             }
+        }
+
+        private async Task<byte[]> DownloadAlbumArt(string albumPictureId, string savePath)
+        {
+            string url = $"https://e-cdns-images.dzcdn.net/images/cover/{albumPictureId}/1400x1400-000000-94-0-0.jpg";
+
+            using (HttpResponseMessage albumCoverResponse = await _httpClient.GetAsync(url))
+            {
+                if (!albumCoverResponse.IsSuccessStatusCode)
+                {
+                    return new byte[0];
+                }
+
+                using (Stream coverStream = await albumCoverResponse.Content.ReadAsStreamAsync())
+                {
+                    using (FileStream fileStream = File.Create(savePath))
+                    {
+                        coverStream.Seek(0, SeekOrigin.Begin);
+                        coverStream.CopyTo(fileStream);
+                    }
+                }
+
+                return await albumCoverResponse.Content.ReadAsByteArrayAsync();
+            }
+        }
+
+        public void Dispose()
+        {
+            _httpClient?.Dispose();
         }
     }
 }

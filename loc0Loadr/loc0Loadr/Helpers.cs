@@ -5,8 +5,11 @@ using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using FlacLibSharp;
 using loc0Loadr.Enums;
 using Newtonsoft.Json.Linq;
+using TagLib;
+using TagLib.Id3v2;
 
 namespace loc0Loadr
 {
@@ -28,6 +31,14 @@ namespace loc0Loadr
             {"FILESIZE_MP3_256", AudioQuality.Mp3256},
             {"FILESIZE_MP3_320", AudioQuality.Mp3320},
             {"FILESIZE_FLAC", AudioQuality.Flac},
+        };
+        
+        public static readonly Dictionary<AudioQuality, string> AudioQualityToOutputString = new Dictionary<AudioQuality, string>
+        {
+            {AudioQuality.Mp3128, "MP3 @ 128"},
+            {AudioQuality.Mp3256, "MP3 @ 256"},
+            {AudioQuality.Mp3320, "MP3 @ 320"},
+            {AudioQuality.Flac, "FLAC"},
         };
         
         public static void RedMessage(string message)
@@ -63,11 +74,15 @@ namespace loc0Loadr
 
         public static string TakeInput(int start, int count, params string[] messages)
         {
-            Console.WriteLine($"\n{messages[0]}");
-            foreach (string message in messages.Skip(1))
+            Console.WriteLine($"\n{start} - {messages[0]}");
+                
+            for (var i = 1; i < messages.Length; i++)
             {
-                Console.WriteLine(message);
+                string message = messages[i];
+
+                Console.WriteLine($"{i + 1} - {message}");
             }
+
             Console.Write("\nEnter choice: ");
             string input = Console.ReadLine()?.Trim();
 
@@ -114,13 +129,13 @@ namespace loc0Loadr
             }
         }
 
-        public static void DisplayDeezerErrors(this JToken json)
+        public static void DisplayDeezerErrors(this JToken json, string operation)
         {
             if (json["error"] != null && json["error"].HasValues)
             {
                 foreach (JProperty child in json["error"].Children().Select(x => (JProperty) x))
                 {
-                    RedMessage($"{child.Name} - {child.Value.Value<string>()}");
+                    RedMessage($"[{operation}] {child.Name} - {child.Value.Value<string>()}");
                 }
             }
         }
@@ -160,12 +175,28 @@ namespace loc0Loadr
 
         public static string PadNumber(this string word)
         {
-            if (int.Parse(word) < 10)
+            return int.Parse(word) < 10 
+                ? $"0{word}" 
+                : word;
+        }
+
+        public static UserTextInformationFrame BuildTextInformationFrame(string description, params string[] text)
+        {
+            return new UserTextInformationFrame("TXXX", StringType.UTF8)
             {
-                return $"0{word}";
+                Text = text,
+                Description = description
+            };
+        }
+
+        public static void AddTagIfNotNull(VorbisComment comments, string key, params string[] values)
+        {
+            if (values == null)
+            {
+                return;
             }
 
-            return word;
+            comments[key] = new VorbisCommentValues(values.Where(x => x != null));
         }
     }
 }

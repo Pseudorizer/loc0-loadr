@@ -21,6 +21,7 @@ namespace loc0Loadr
 
         public static byte[] DecryptTrack(byte[] downloadBytes, string sngId)
         {
+            Console.WriteLine("Decrypting track");
             string blowfishKey = GetBlowfishKey(sngId);
             byte[] keyBytes = Encoding.UTF8.GetBytes(blowfishKey);
             long streamLength = downloadBytes.Length;
@@ -68,7 +69,7 @@ namespace loc0Loadr
             var qualityId = trackInfo["QUALITY"]["AudioEnumId"].Value<string>();
             var sngId = trackInfo["SNG_ID"].Value<string>();
             var mediaVersion = trackInfo["MEDIA_VERSION"].Value<string>();
-
+            
             string itemsJoined = string.Join("¤", md5Origin, qualityId, sngId, mediaVersion);
             string newHash = string.Empty;
 
@@ -136,8 +137,8 @@ namespace loc0Loadr
             return finalHash;
         }
 
-        private static byte[] FixStarCharBytes(byte[] bytes) // replacing EVERY 63 may cause issues but is fine for now
-        {
+        private static byte[] FixStarCharBytes(byte[] bytes) // since the star symbol is unicode and i need ascii this is the hacky solution
+        { // there's probably a correct way to do this but i haven't figured it out
             for (var index = 0; index < bytes.Length; index++)
             {
                 byte itemsJoinedByte = bytes[index];
