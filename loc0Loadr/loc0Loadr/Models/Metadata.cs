@@ -44,7 +44,7 @@ namespace loc0Loadr.Models
         public string Copyright { get; set; }
 
         [JsonProperty("SNG_CONTRIBUTORS")]
-        public Contributors Contributors { get; set; }
+        public Contributorss Contributors { get; set; }
         
         [JsonProperty("ISRC")]
         public string Isrc { get; set; }
@@ -80,7 +80,7 @@ namespace loc0Loadr.Models
         public string Name { get; set; }
     }
 
-    public class Contributors
+    public class Contributorss
     {
         [JsonProperty("composer")]
         public string[] Composers { get; set; }

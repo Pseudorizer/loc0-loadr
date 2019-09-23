@@ -13,7 +13,7 @@ namespace loc0Loadr
     {
         private readonly DeezerHttp _deezerHttp;
         private AudioQuality _audioQuality;
-        private string _audioQualityOutput;
+        private string _audioQualityOutput => Helpers.AudioQualityToOutputString[_audioQuality];
 
         public DeezerDownloader(DeezerHttp deezerHttp, AudioQuality audioQuality)
         {
@@ -148,73 +148,74 @@ namespace loc0Loadr
                     }
                 }
             }
-            
-            
+
+            if (!UpdateAudioQualityToAvailable(trackInfo))
+            {
+                Helpers.RedMessage("SHT");
+            }
             
             return true;
         }
 
-        public void SetAudioQuality(TrackInfo trackInfo, AudioQuality audioQuality)
+        private bool UpdateAudioQualityToAvailable(TrackInfo trackInfo)
         {
-            _audioQuality = audioQuality;
-            
             var enumIds = new List<int> {1, 5, 3, 9};
 
-            int startIndex = enumIds.IndexOf((int) audioQuality);
+            int startIndex = enumIds.IndexOf((int) _audioQuality);
 
-            if (audioQuality == AudioQuality.Flac)
+            if (_audioQuality == AudioQuality.Flac)
             {
                 enumIds.Reverse();
                 startIndex = 0;
             }
 
-            for (int index = startIndex; index < enumIds.Count; index++)
+            if (IterateOverIds(trackInfo.TrackTags, enumIds, startIndex, enumIds.Count))
             {
-                int enumId = enumIds[index];
-                ChosenAudioQuality newQuality = SearchForQuality(availableQualities, (AudioQuality) enumId);
-
-                if (newQuality != null)
-                {
-                    return newQuality;
-                }
+                return true;
             }
 
-            if (audioQuality != AudioQuality.Flac)
+            if (_audioQuality != AudioQuality.Flac)
             {
                 enumIds.RemoveRange(startIndex, 4 - startIndex);
                 enumIds.Reverse();
             }
 
-            for (var i = 0; i < startIndex; i++)
+            return IterateOverIds(trackInfo.TrackTags, enumIds, 0, startIndex);
+        }
+
+        private bool IterateOverIds(TrackTags trackTags, IReadOnlyList<int> enumIds, int startIndex, int endIndex)
+        {
+            for (int index = startIndex; index < endIndex; index++)
             {
-                int enumId = enumIds[i];
-                ChosenAudioQuality newQuality = SearchForQuality(availableQualities, (AudioQuality) enumId);
+                int enumId = enumIds[index];
+                var tempAudioQuality = (AudioQuality) enumId;
+                bool qualityIsAvailable = CheckIfQualityIsAvailable(trackTags, tempAudioQuality);
 
-                if (newQuality != null)
+                if (qualityIsAvailable)
                 {
-                    return newQuality;
+                    _audioQuality = tempAudioQuality;
+                    return true;
                 }
-                
             }
-
-            return null;
+            
+            return false;
         }
         
-        private ChosenAudioQuality SearchForQuality(TrackInfo qualities, AudioQuality audioQuality)
+        private bool CheckIfQualityIsAvailable(TrackTags trackTags, AudioQuality audioQuality)
         {
-            return qualities
-                .Where(x => Helpers.KeyToAudioQuality.ContainsKey(x.Name))
-                .Where(y => Helpers.KeyToAudioQuality[y.Name] == audioQuality)
-                .Select(z => new ChosenAudioQuality
-                {
-                    Extension = audioQuality == AudioQuality.Flac
-                        ? "flac"
-                        : "mp3",
-                    AudioEnumId = (int) audioQuality,
-                    QualityForOutput = Helpers.AudioQualityToOutputString[audioQuality],
-                    Size = z.Value.Value<long>()
-                })
-                .FirstOrDefault();
+            switch (audioQuality)
+            {
+                case AudioQuality.Flac:
+                    return trackTags.Flac != 0;
+                case AudioQuality.Mp3320:
+                    return trackTags.Mp3320 != 0;
+                case AudioQuality.Mp3256:
+                    return trackTags.Mp3256 != 0;
+                case AudioQuality.Mp3128:
+                    return trackTags.Mp3128 != 0;
+                default:
+                    return false;
+            }
         }
     }
 }
