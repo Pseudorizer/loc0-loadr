@@ -6,7 +6,7 @@ namespace loc0Loadr
 {
     internal class TrackInfo
     {
-        public TrackTags TrackTags { get; set; } = new TrackTags();
+        public TrackTags TrackTags { get; set; }
         public JObject TrackJson { get; set; }
 
         public static TrackInfo BuildTrackInfo(JObject trackInfoJObject)
