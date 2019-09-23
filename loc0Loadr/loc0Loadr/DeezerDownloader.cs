@@ -169,7 +169,7 @@ namespace loc0Loadr
                 startIndex = 0;
             }
 
-            if (IterateOverIds(trackInfo.TrackTags, enumIds, startIndex, enumIds.Count))
+            if (ValidAudioQualityFound(trackInfo.TrackTags, enumIds, startIndex, enumIds.Count))
             {
                 return true;
             }
@@ -180,10 +180,10 @@ namespace loc0Loadr
                 enumIds.Reverse();
             }
 
-            return IterateOverIds(trackInfo.TrackTags, enumIds, 0, startIndex);
+            return ValidAudioQualityFound(trackInfo.TrackTags, enumIds, 0, startIndex);
         }
 
-        private bool IterateOverIds(TrackTags trackTags, IReadOnlyList<int> enumIds, int startIndex, int endIndex)
+        private bool ValidAudioQualityFound(TrackTags trackTags, IReadOnlyList<int> enumIds, int startIndex, int endIndex)
         {
             for (int index = startIndex; index < endIndex; index++)
             {
