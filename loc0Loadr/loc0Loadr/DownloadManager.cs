@@ -11,6 +11,7 @@ namespace loc0Loadr
 
         public async Task Run()
         {
+            Console.CancelKeyPress += ConsoleOnCancelKeyPress;
             if (string.IsNullOrWhiteSpace(Configuration.GetValue<string>("arl")))
             {
                 Helpers.RedMessage("ARL is missing");
@@ -33,27 +34,32 @@ namespace loc0Loadr
             }
             
             Helpers.GreenMessage("Success");
-
+            
             while (true)
             {
-                string choice = Helpers.TakeInput(1, 2, "Download via URL", "Search for media");
+                string choice = Helpers.TakeInput(1, 3, "Download via URL", "Search for media", "Exit");
                 string qualityChoice = Helpers.TakeInput(1, 4, "MP3 128", "MP3 256", "MP3 320", "FLAC");
 
                 AudioQuality quality = Helpers.InputToAudioQuality[qualityChoice];
 
-                switch (choice)
+                // ReSharper disable once ConvertIfStatementToSwitchStatement
+                if (choice == "1")
                 {
-                    case "1":
-                        await DownloadFromUrl(quality);
-                        break;
-                    case "2":
-                        await DownloadFromSearch(quality);
-                        break;
+                    await DownloadFromUrl(quality);
                 }
-            } 
+                else if (choice == "2")
+                {
+                    await DownloadFromSearch(quality);
+                }
+                else if (choice == "3")
+                {
+                    _deezerHttp.Dispose();
+                    Environment.Exit(0);
+                }
+            }
         }
 
-        private async Task DownloadFromUrl(AudioQuality quality)
+        private async Task DownloadFromUrl(AudioQuality audioQuality)
         {
             string url = Helpers.TakeInput("Enter URL: ");
 
@@ -67,20 +73,24 @@ namespace loc0Loadr
 
             string type = urlMatches[1];
             string id = urlMatches[2];
+            
+            var deezerDownloader = new DeezerDownloader(_deezerHttp, audioQuality);
 
             var result = false;
             
             switch (type)
             {
                 case "track":
-                    result = await _deezerHttp.DownloadTrack(id, quality);
+                    result = await deezerDownloader.ProcessTrack(id);
+                    break;
+                case "artist":
+                    result = await deezerDownloader.ProcessArtist(id);
                     break;
                 case "playlist":
-                case "album":
-                    result = await _deezerHttp.DownloadMultiple(id, type, quality);
+                    result = await deezerDownloader.DownloadPlaylist(id);
                     break;
-                default:
-                    result = false;
+                case "album":
+                    result = await deezerDownloader.ProcessAlbum(id);
                     break;
             }
 
@@ -97,6 +107,11 @@ namespace loc0Loadr
         private async Task DownloadFromSearch(AudioQuality quality)
         {
             
+        }
+
+        private void ConsoleOnCancelKeyPress(object sender, ConsoleCancelEventArgs e)
+        {
+            _deezerHttp?.Dispose();
         }
     }
 }

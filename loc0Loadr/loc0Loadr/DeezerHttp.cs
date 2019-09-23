@@ -276,6 +276,28 @@ namespace loc0Loadr
                     });
 
                     break;
+                case "artist":
+                    JObject artistInfo = await HitUnofficialApi("artist.getData", new JObject
+                    {
+                        ["art_id"] = id,
+                        ["filter_role_id"] = 0,
+                        ["lang"] = "us",
+                        ["tab"] = 0,
+                        ["nb"] = -1,
+                        ["start"] = 0
+                    });
+                    
+                    JObject discographyInfo = await HitUnofficialApi("album.getDiscography", new JObject
+                    {
+                        ["art_id"] = id,
+                        ["filter_role_id"] = 0,
+                        ["lang"] = "us",
+                        ["nb"] = 500,
+                        ["nb_songs"] = -1,
+                        ["start"] = 0
+                    });
+                    
+                    break;
             }
 
             return true;
@@ -346,7 +368,7 @@ namespace loc0Loadr
             return true;
         }
 
-        private async Task<JObject> HitUnofficialApi(string method, JObject data)
+        public async Task<JObject> HitUnofficialApi(string method, JObject data, int retries = 3)
         {
             string queryString = await Helpers.BuildDeezerApiQueryString(_apiToken, method);
             string url = $"{Helpers.ApiUrl}?{queryString}";
@@ -354,33 +376,102 @@ namespace loc0Loadr
             string bodyData = JsonConvert.SerializeObject(data);
 
             var body = new StringContent(bodyData, Encoding.UTF8, "application/json");
-            
-            using (HttpResponseMessage apiResponse = await _httpClient.PostAsync(url, body))
+
+            var attempts = 1;
+
+            while (attempts <= retries)
             {
-                if (!apiResponse.IsSuccessStatusCode)
+                try
                 {
-                    return null;
+                    using (HttpResponseMessage apiResponse = await _httpClient.PostAsync(url, body))
+                    {
+                        if (!apiResponse.IsSuccessStatusCode)
+                        {
+                            attempts++;
+                            continue;
+                        }
+
+                        string bodyContent = await apiResponse.Content.ReadAsStringAsync();
+
+                        if (string.IsNullOrWhiteSpace(bodyContent))
+                        {
+                            attempts++;
+                        }
+                        else
+                        {
+                            try
+                            {
+                                return JObject.Parse(bodyContent);
+                            }
+                            catch (JsonReaderException ex)
+                            {
+                                Console.WriteLine(ex.Message);
+                                attempts++;
+                            }
+                        }
+                    }
                 }
-
-                string bodyContent = await apiResponse.Content.ReadAsStringAsync();
-
-                return JObject.Parse(bodyContent);
+                catch (HttpRequestException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    attempts++;
+                }
+                
+                Helpers.RedMessage("Request failed, waiting 5s...");
+                await Task.Delay(5000);
             }
+
+            return null;
         }
 
-        private async Task<JObject> HitOfficialApi(string path, string id)
+        public async Task<JObject> HitOfficialApi(string path, string id, int retires = 3)
         {
-            using (HttpResponseMessage albumResponse = await _httpClient.GetAsync($"https://api.deezer.com/{path}/{id}"))
+            var attempts = 1;
+
+            while (attempts <= retires)
             {
-                if (!albumResponse.IsSuccessStatusCode)
+                try
                 {
-                    return null;
+                    using (HttpResponseMessage albumResponse =
+                        await _httpClient.GetAsync($"https://api.deezer.com/{path}/{id}"))
+                    {
+                        if (!albumResponse.IsSuccessStatusCode)
+                        {
+                            attempts++;
+                            continue;
+                        }
+
+                        string albumResponseContent = await albumResponse.Content.ReadAsStringAsync();
+
+                        if (string.IsNullOrWhiteSpace(albumResponseContent))
+                        {
+                            attempts++;
+                        }
+                        else
+                        {
+                            try
+                            {
+                                return JObject.Parse(albumResponseContent);
+                            }
+                            catch (JsonReaderException ex)
+                            {
+                                Console.WriteLine(ex.Message);
+                                attempts++;
+                            }
+                        }
+                    }
                 }
-
-                string albumResponseContent = await albumResponse.Content.ReadAsStringAsync();
-
-                return JObject.Parse(albumResponseContent);
+                catch (HttpRequestException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    attempts++;
+                }
+                
+                Helpers.RedMessage("Request failed, waiting 5s...");
+                await Task.Delay(5000);
             }
+
+            return null;
         }
 
         private async Task<byte[]> DownloadTrack(string url)
@@ -425,4 +516,200 @@ namespace loc0Loadr
             _httpClient?.Dispose();
         }
     }
+
+    internal class AlbumTags
+    {
+        [JsonProperty("NUMBER_DISK")]
+        public string NumberOfDisks { get; set; }
+        
+        [JsonProperty("NUMBER_TRACK")]
+        public string NumberOfTracks { get; set; }
+        
+        [JsonProperty("PHYSICAL_RELEASE_DATE")]
+        public string ReleaseDate { get; set; }
+        
+        [JsonProperty("COPYRIGHT")]
+        public string Copyright { get; set; }
+        
+        [JsonProperty("ALB_PICTURE")]
+        public string PictureId { get; set; }
+        
+        [JsonProperty("LABEL_NAME")]
+        public string Label { get; set; }
+        
+        [JsonProperty("UPC")]
+        public string Barcode { get; set; }
+        
+        public IEnumerable<string> Genres { get; set; }
+    }
+
+    internal class AlbumInfo
+    {
+        public AlbumTags AlbumTags { get; set; }
+        public JArray Songs { get; set; }
+
+        public static AlbumInfo BuildAlbumInfo(JObject albumInfoJObject, JObject officialAlbumInfo)
+        {
+            var albumInfo = new AlbumInfo
+            {
+                AlbumTags = albumInfoJObject["results"]["DATA"].ToObject<AlbumTags>(),
+                Songs = (JArray) albumInfoJObject["results"]["SONGS"]["data"]
+            };
+
+            if (albumInfo.AlbumTags.NumberOfTracks == null && albumInfoJObject["results"]["SONGS"]?["total"] != null)
+            {
+                albumInfo.AlbumTags.NumberOfTracks = albumInfoJObject["results"]["SONGS"]["total"].Value<string>();
+            }
+
+            if (officialAlbumInfo?["genres"]?["data"] != null)
+            {
+                albumInfo.AlbumTags.Genres = officialAlbumInfo["genres"]["data"]
+                    .Children<JObject>()
+                    .Select(x => x["name"].Value<string>());
+            }
+
+            return albumInfo;
+        }
+    }
+
+    internal class TrackInfo
+    {
+        public TrackTags TrackTags { get; set; } = new TrackTags();
+        public JObject TrackJson { get; set; }
+
+        public static TrackInfo BuildTrackInfo(JObject trackInfoJObject)
+        {
+            return new TrackInfo
+            {
+                TrackJson = trackInfoJObject,
+                TrackTags = trackInfoJObject.ToObject<TrackTags>()
+            };
+        }
+    }
+
+    internal class TrackTags
+    {
+        [JsonProperty("SNG_ID")]
+        public string Id { get; set; }
+        
+        [JsonProperty("SNG_TITLE")]
+        public string Title { get; set; }
+        
+        [JsonProperty("ARTISTS")]
+        public Artists[] Artists { get; set; }
+        
+        [JsonProperty("MD5_ORIGIN")]
+        public string Md5Origin { get; set; }
+
+        [JsonProperty("DURATION")]
+        public string Duration { get; set; }
+
+        [JsonProperty("FILESIZE_MP3_128")]
+        public long Mp3128 { get; set; }
+
+        [JsonProperty("FILESIZE_MP3_256")]
+        public long Mp3256 { get; set; }
+
+        [JsonProperty("FILESIZE_MP3_320")]
+        public long Mp3320 { get; set; }
+
+        [JsonProperty("FILESIZE_FLAC")]
+        public long Flac { get; set; }
+        
+        [JsonProperty("GAIN")]
+        public string Gain { get; set; }
+        
+        [JsonProperty("DISK_NUMBER")]
+        public string DiskNumber { get; set; }
+
+        [JsonProperty("TRACK_NUMBER")]
+        public string TrackNumber { get; set; }
+        
+        [JsonProperty("EXPLICIT_LYRICS")]
+        public string ExplicitLyrics { get; set; }
+        
+        [JsonProperty("ISRC")]
+        public string Isrc { get; set; }
+        
+        [JsonProperty("LYRICS_ID")]
+        public string LyricsId { get; set; }
+        
+        [JsonProperty("SNG_CONTRIBUTORS")]
+        public Contributors Contributors { get; set; }
+    }
+
+    internal class Artists
+    {
+        [JsonProperty("ART_NAME")]
+        public string Name { get; set; }
+    }
+
+    internal class Contributors
+    {
+        [JsonProperty("composer")]
+        public string[] Composers { get; set; }
+        
+        [JsonProperty("musicpublisher")]
+        public string[] Publishers { get; set; }
+        
+        [JsonProperty("producer")]
+        public string[] Producers { get; set; }
+        
+        [JsonProperty("engineer")]
+        public string[] Engineers { get; set; }
+        
+        [JsonProperty("writer")]
+        public string[] Writers { get; set; }
+        
+        [JsonProperty("author")]
+        public string[] Author { get; set; }
+        
+        [JsonProperty("mixer")]
+        public string[] Mixer { get; set; }
+    }
+
+    /*internal class OverwriteCollection
+    {
+        private readonly JObject _newJson = new JObject();
+
+        public void Add(string key, string value)
+        {
+            if (string.IsNullOrWhiteSpace(key)) throw new ArgumentNullException(nameof(key));
+
+            if (string.IsNullOrWhiteSpace(value)) throw new ArgumentNullException(nameof(value));
+
+
+            _newJson[key] = value;
+        }
+
+        public void Add(string key, object values)
+        {
+            if (string.IsNullOrWhiteSpace(key)) throw new ArgumentNullException(nameof(key));
+
+            if (values == null) throw new ArgumentNullException(nameof(values));
+
+            _newJson[key] = JObject.FromObject(values);
+        }
+
+        public void Add(JProperty json)
+        {
+            if (json == null) throw new ArgumentNullException(nameof(json));
+
+            _newJson.Add(json);
+        }
+
+        public void Add(JToken json)
+        {
+            if (json == null) throw new ArgumentNullException(nameof(json));
+
+            Add((JProperty) json);
+        }
+
+        public JToken UpdateValues(JToken original)
+        {
+            foreach ((string key, JToken value) in _newJson) original[key] = value;
+
+            return original;
+        }
+    }*/
 }
