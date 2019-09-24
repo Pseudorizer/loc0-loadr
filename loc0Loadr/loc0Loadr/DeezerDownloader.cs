@@ -74,7 +74,7 @@ namespace loc0Loadr
 
         private async Task<AlbumInfo> GetAlbumInfo(string id)
         {
-            if (string.IsNullOrWhiteSpace(id))
+            if (string.IsNullOrWhiteSpace(id) || id == "0")
             {
                 return null;
             }
@@ -124,16 +124,13 @@ namespace loc0Loadr
             if (_albumInfo == null)
             {
                 var albumId = _trackInfo.TrackJson["ALB_ID"].Value<string>();
+                
+                _albumInfo = await GetAlbumInfo(albumId);
 
-                if (albumId != "0")
+                if (_albumInfo == null)
                 {
-                    _albumInfo = await GetAlbumInfo(albumId);
-
-                    if (_albumInfo == null)
-                    {
-                        Helpers.RedMessage("Failed to get album info");
-                        return false;
-                    }
+                    Helpers.RedMessage("Failed to get album info");
+                    return false;
                 }
             }
 
