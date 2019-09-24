@@ -37,6 +37,9 @@ namespace loc0Loadr.Models
         [JsonProperty("GAIN")]
         public string Gain { get; set; }
         
+        [JsonIgnore]
+        public string Bpm { get; set; }
+        
         [JsonProperty("DISK_NUMBER")]
         public string DiskNumber { get; set; }
 

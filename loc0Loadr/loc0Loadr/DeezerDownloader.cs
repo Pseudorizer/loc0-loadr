@@ -62,8 +62,6 @@ namespace loc0Loadr
             foreach (JObject albumInfoSong in _albumInfo.Songs.Children<JObject>())
             {
                 var trackId = albumInfoSong["SNG_ID"].Value<string>();
-
-                _trackInfo = TrackInfo.BuildTrackInfo(albumInfoSong);
                 
                 var f = await ProcessTrack(trackId);
             }
@@ -170,9 +168,11 @@ namespace loc0Loadr
                 ["SNG_ID"] = id
             });
 
+            JObject officialTrackInfo = await _deezerHttp.HitOfficialApi("track", id);
+
             return trackInfoJObject == null
                 ? null
-                : TrackInfo.BuildTrackInfo(trackInfoJObject);
+                : TrackInfo.BuildTrackInfo(trackInfoJObject, officialTrackInfo);
         }
 
         // the way this works is that if the wanted quality was not found, the next best will be tried and so on
