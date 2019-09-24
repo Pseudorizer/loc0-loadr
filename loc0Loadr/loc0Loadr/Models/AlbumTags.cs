@@ -45,9 +45,9 @@ namespace loc0Loadr.Models
             get => _type;
             set
             {
-                if (string.Equals("eq", value, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals("ep", value, StringComparison.OrdinalIgnoreCase))
                 {
-                    _type = "EQ";
+                    _type = "EP";
                 }
                 else if (string.IsNullOrWhiteSpace(value))
                 {
