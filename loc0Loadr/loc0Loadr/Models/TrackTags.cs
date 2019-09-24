@@ -51,10 +51,7 @@ namespace loc0Loadr.Models
         
         [JsonProperty("ISRC")]
         public string Isrc { get; set; }
-        
-        [JsonProperty("LYRICS_ID")]
-        public string LyricsId { get; set; }
-        
+
         [JsonProperty("SNG_CONTRIBUTORS")]
         public Contributors Contributors { get; set; }
         
@@ -69,6 +66,24 @@ namespace loc0Loadr.Models
     {
         [JsonProperty("ART_NAME")]
         public string Name { get; set; }
+    }
+
+    internal class Lyrics
+    {
+        [JsonProperty("LYRICS_TEXT")]
+        public string UnSyncedLyrics { get; set; }
+        
+        [JsonProperty("LYRICS_SYNC_JSON")]
+        public SyncedLyrics[] SyncedLyrics { get; set; }
+    }
+    
+    public class SyncedLyrics
+    {
+        [JsonProperty("lrc_timestamp")]
+        public string Timestamp { get; set; }
+        
+        [JsonProperty("line")]
+        public string Line { get; set; }
     }
     
     internal class Contributors

@@ -281,17 +281,17 @@ namespace loc0Loadr
                 comments["Track"] = new VorbisCommentValues($"{_trackInfo.TrackTags.TrackNumber}/{_albumInfo.AlbumTags.NumberOfTracks}");
                 comments["Disc"] = new VorbisCommentValues($"{_trackInfo.TrackTags.DiskNumber}/{_albumInfo.AlbumTags.NumberOfDisks}");
                 comments["Copyright"] = new VorbisCommentValues(_albumInfo.AlbumTags.Copyright ?? "");
-                comments["BPM"] = new VorbisCommentValues(_trackInfo.TrackTags.LyricsId ?? "");
+                comments["BPM"] = new VorbisCommentValues(_trackInfo.TrackTags.Bpm ?? "");
                 comments["Media"] = new VorbisCommentValues("Digital Media");
-/*                comments["Length"] = new VorbisCommentValues(_metadata.Duration ?? "");
-                comments["ISRC"] = new VorbisCommentValues(_metadata.Isrc ?? "");
-                comments["Barcode"] = new VorbisCommentValues(_metadata.Upc ?? "");
-                comments["Label"] = new VorbisCommentValues(_metadata.Label ?? "");
-                comments["Explicit"] = new VorbisCommentValues(_metadata.HasExplicitLyrics ?? "0");
-                comments["Album Artist"] = new VorbisCommentValues(_metadata.AlbumArtist ?? "");
-                comments["REPLAYGAIN_TRACK_GAIN"] = new VorbisCommentValues(_metadata.Gain ?? "");
+                comments["Length"] = new VorbisCommentValues(_trackInfo.TrackTags.Duration ?? "");
+                comments["ISRC"] = new VorbisCommentValues(_trackInfo.TrackTags.Isrc ?? "");
+                comments["Barcode"] = new VorbisCommentValues(_albumInfo.AlbumTags.Barcode ?? "");
+                comments["Label"] = new VorbisCommentValues(_albumInfo.AlbumTags.Label ?? "");
+                comments["Explicit"] = new VorbisCommentValues(_trackInfo.TrackTags.ExplicitLyrics ?? "0");
+                comments["Album Artist"] = new VorbisCommentValues(_trackInfo.TrackTags.ArtistName ?? "");
+                comments["REPLAYGAIN_TRACK_GAIN"] = new VorbisCommentValues(_trackInfo.TrackTags.Gain ?? "");
 
-                if (_metadata.Lyrics != null)
+/*                if (_metadata.Lyrics != null)
                 {
                     comments["Lyrics"] = new VorbisCommentValues(_metadata.Lyrics.UnSyncedLyrics ?? "");
 

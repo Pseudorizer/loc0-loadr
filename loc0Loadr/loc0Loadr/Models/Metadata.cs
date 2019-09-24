@@ -62,7 +62,7 @@ namespace loc0Loadr.Models
         public string HasExplicitLyrics { get; set; }
         
         [JsonProperty("LYRICS")]
-        public Lyrics Lyrics { get; set; }
+        public Lyricss Lyrics { get; set; }
         
         [JsonProperty("PHYSICAL_RELEASE_DATE")]
         public string Year { get; set; }
@@ -104,16 +104,16 @@ namespace loc0Loadr.Models
         public string[] Mixers { get; set; }
     }
 
-    public class Lyrics
+    public class Lyricss
     {
         [JsonProperty("LYRICS_TEXT")]
         public string UnSyncedLyrics { get; set; }
         
         [JsonProperty("LYRICS_SYNC_JSON")]
-        public SyncLyrics[] SyncedLyrics { get; set; }
+        public SyncedLyrics[] SyncedLyrics { get; set; }
     }
 
-    public class SyncLyrics
+    public class SyncLyricss
     {
         [JsonProperty("lrc_timestamp")]
         public string Timestamp { get; set; }
