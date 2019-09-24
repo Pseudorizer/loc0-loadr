@@ -36,18 +36,16 @@ namespace loc0Loadr
         
         public static void RedMessage(string message)
         {
-            ConsoleColor original = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.DarkRed;
             Console.WriteLine($"\n{message}");
-            Console.ForegroundColor = original;
+            Console.ForegroundColor = ConsoleColor.White;
         }
         
         public static void GreenMessage(string message)
         {
-            ConsoleColor original = Console.ForegroundColor;
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"\n{message}");
-            Console.ForegroundColor = original;
+            Console.ForegroundColor = ConsoleColor.White;
         }
 
         public static string TakeInput(string message)
