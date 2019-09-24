@@ -12,8 +12,6 @@ namespace loc0Loadr
     {
         private readonly DeezerHttp _deezerHttp;
         private AudioQuality _audioQuality;
-        private TrackInfo _trackInfo;
-        private AlbumInfo _albumInfo;
 
         public DeezerDownloader(DeezerHttp deezerHttp, AudioQuality audioQuality)
         {
@@ -70,9 +68,9 @@ namespace loc0Loadr
 
         public async Task<bool> ProcessAlbum(string id)
         {
-            _albumInfo = await GetAlbumInfo(id);
+            AlbumInfo albumInfo = await GetAlbumInfo(id);
 
-            if (_albumInfo == null)
+            if (albumInfo == null)
             {
                 Helpers.RedMessage("Failed to get album info");
                 return false;
@@ -80,20 +78,16 @@ namespace loc0Loadr
             
             List<bool> results = new List<bool>();
 
-            Console.WriteLine($"\nDownloading {_albumInfo.AlbumTags.Title} ({_albumInfo.AlbumTags.Type})");
+            Console.WriteLine($"\nDownloading {albumInfo.AlbumTags.Title} ({albumInfo.AlbumTags.Type})");
                 
-            foreach (JObject albumInfoSong in _albumInfo.Songs.Children<JObject>())
+            foreach (JObject albumInfoSong in albumInfo.Songs.Children<JObject>())
             {
                 var trackId = albumInfoSong["SNG_ID"].Value<string>();
 
-                bool downloadResult = await ProcessTrack(trackId);
-                
-                _trackInfo = null;
+                bool downloadResult = await ProcessTrack(trackId, albumInfo);
                 
                 results.Add(downloadResult);
             }
-            
-            _albumInfo = null;
             
             int downloadsSucceed = results.Count(x => x);
 
@@ -139,41 +133,41 @@ namespace loc0Loadr
             return true;
         }
 
-        public async Task<bool> ProcessTrack(string id)
+        public async Task<bool> ProcessTrack(string id, AlbumInfo albumInfo = null, TrackInfo trackInfo = null)
         {
-            if (_trackInfo == null)
+            if (trackInfo == null)
             {
-                _trackInfo = await GetTrackInfo(id);
+                trackInfo = await GetTrackInfo(id);
 
-                if (_trackInfo == null)
+                if (trackInfo == null)
                 {
                     Helpers.RedMessage("Failed to get track info");
                     return false;
                 }
             }
 
-            if (_albumInfo == null)
+            if (albumInfo == null)
             {
-                string albumId = _trackInfo.TrackTags.AlbumId;
+                string albumId = trackInfo.TrackTags.AlbumId;
                 
-                _albumInfo = await GetAlbumInfo(albumId);
+                albumInfo = await GetAlbumInfo(albumId);
 
-                if (_albumInfo == null)
+                if (albumInfo == null)
                 {
                     Helpers.RedMessage("Failed to get album info");
                     return false;
                 }
             }
 
-            if (!UpdateAudioQualityToAvailable())
+            if (!UpdateAudioQualityToAvailable(trackInfo))
             {
                 Helpers.RedMessage("Failed to find valid quality");
                 return false;
             }
 
-            string saveLocation = BuildSaveLocation();
+            string saveLocation = BuildSaveLocation(trackInfo, albumInfo);
             string saveLocationDirectory = Path.GetDirectoryName(saveLocation);
-            string tempTrackPath = GetTempTrackPath(saveLocationDirectory);
+            string tempTrackPath = Helpers.GetTempTrackPath(saveLocationDirectory, trackInfo.TrackTags.Id);
 
             if (File.Exists(saveLocation))
             {
@@ -182,7 +176,7 @@ namespace loc0Loadr
                 return true;
             }
 
-            byte[] decryptedBytes = await GetDecryptedBytes();
+            byte[] decryptedBytes = await GetDecryptedBytes(trackInfo);
 
             if (!Helpers.WriteTrackBytes(decryptedBytes, tempTrackPath))
             {
@@ -190,9 +184,9 @@ namespace loc0Loadr
                 return false;
             }
 
-            byte[] albumCover = await GetAndSaveAlbumArt(_albumInfo.AlbumTags.PictureId, saveLocationDirectory);
+            byte[] albumCover = await GetAndSaveAlbumArt(albumInfo.AlbumTags.PictureId, saveLocationDirectory);
             
-            var metadataWriter = new MetadataWriter(_trackInfo, _albumInfo, tempTrackPath, albumCover);
+            var metadataWriter = new MetadataWriter(trackInfo, albumInfo, tempTrackPath, albumCover);
             if (!metadataWriter.WriteMetaData(_audioQuality == AudioQuality.Flac))
             {
                 Helpers.RedMessage("Failed to write tags");
@@ -227,7 +221,7 @@ namespace loc0Loadr
         // the way this works is that if the wanted quality was not found, the next best will be tried and so on
         // until it wraps around to the start and tries the lower quality options, starting at highest lower quality
         // I.E. 320 -> FLAC -> 256 -> 128 -> null
-        private bool UpdateAudioQualityToAvailable()
+        private bool UpdateAudioQualityToAvailable(TrackInfo trackInfo)
         {
             var enumIds = new List<int> {1, 5, 3, 9};
 
@@ -239,7 +233,7 @@ namespace loc0Loadr
                 startIndex = 0;
             }
 
-            if (ValidAudioQualityFound(enumIds, startIndex, enumIds.Count))
+            if (ValidAudioQualityFound(startIndex, enumIds.Count))
             {
                 return true;
             }
@@ -250,52 +244,35 @@ namespace loc0Loadr
                 enumIds.Reverse();
             }
 
-            return ValidAudioQualityFound(enumIds, 0, startIndex);
-        }
-
-        private bool ValidAudioQualityFound(IReadOnlyList<int> enumIds, int startIndex, int endIndex)
-        {
-            for (int index = startIndex; index < endIndex; index++)
-            {
-                int enumId = enumIds[index];
-                var tempAudioQuality = (AudioQuality) enumId;
-                bool qualityIsAvailable = CheckIfQualityIsAvailable(tempAudioQuality);
-
-                if (qualityIsAvailable)
-                {
-                    _audioQuality = tempAudioQuality;
-                    return true;
-                }
-            }
+            return ValidAudioQualityFound(0, startIndex);
             
-            return false;
-        }
-
-        private bool CheckIfQualityIsAvailable(AudioQuality audioQuality)
-        {
-            switch (audioQuality)
+            bool ValidAudioQualityFound(int startingIndex, int endIndex)
             {
-                case AudioQuality.Flac:
-                    return _trackInfo.TrackTags.Flac != 0;
-                case AudioQuality.Mp3320:
-                    return _trackInfo.TrackTags.Mp3320 != 0;
-                case AudioQuality.Mp3256:
-                    return _trackInfo.TrackTags.Mp3256 != 0;
-                case AudioQuality.Mp3128:
-                    return _trackInfo.TrackTags.Mp3128 != 0;
-                default:
-                    return false;
+                for (int index = startingIndex; index < endIndex; index++)
+                {
+                    int enumId = enumIds[index];
+                    var tempAudioQuality = (AudioQuality) enumId;
+                    bool qualityIsAvailable = Helpers.CheckIfQualityIsAvailable(tempAudioQuality, trackInfo);
+
+                    if (qualityIsAvailable)
+                    {
+                        _audioQuality = tempAudioQuality;
+                        return true;
+                    }
+                }
+            
+                return false;
             }
         }
 
-        private string BuildSaveLocation()
+        private string BuildSaveLocation(TrackInfo trackInfo, AlbumInfo albumInfo)
         {
-            string artist = _trackInfo.TrackTags.AlbumArtist.SanitseString();
-            string type = _albumInfo.AlbumTags.Type.SanitseString();
-            string albumTitle = _albumInfo.AlbumTags.Title.SanitseString();
-            string trackTitle = _trackInfo.TrackTags.Title.SanitseString();
-            string discNumber = _trackInfo.TrackTags.DiscNumber.SanitseString();
-            string trackNumber = _trackInfo.TrackTags.TrackNumber.SanitseString().PadNumber();
+            string artist = trackInfo.TrackTags.AlbumArtist.SanitseString();
+            string type = albumInfo.AlbumTags.Type.SanitseString();
+            string albumTitle = albumInfo.AlbumTags.Title.SanitseString();
+            string trackTitle = trackInfo.TrackTags.Title.SanitseString();
+            string discNumber = trackInfo.TrackTags.DiscNumber.SanitseString();
+            string trackNumber = trackInfo.TrackTags.TrackNumber.SanitseString().PadNumber();
             
             var downloadPath = Configuration.GetValue<string>("downloadLocation");
             string extension = _audioQuality == AudioQuality.Flac
@@ -315,21 +292,12 @@ namespace loc0Loadr
             return savePath;
         }
 
-        private string GetTempTrackPath(string saveLocationDirectory)
+        private async Task<byte[]> GetDecryptedBytes(TrackInfo trackInfo)
         {
-            string filename = $"{_trackInfo.TrackTags.Id}.tmp";
-
-            string tempFilePath = Path.Combine(saveLocationDirectory, filename);
-
-            return tempFilePath;
-        }
-
-        private async Task<byte[]> GetDecryptedBytes()
-        {
-            string downloadUrl = EncryptionHandler.GetDownloadUrl(_trackInfo, (int) _audioQuality);
+            string downloadUrl = EncryptionHandler.GetDownloadUrl(trackInfo, (int) _audioQuality);
 
             Console.WriteLine(
-                $"\nDownloading {_trackInfo.TrackTags.AlbumArtist} - {_trackInfo.TrackTags.Title} | Quality: {Helpers.AudioQualityToOutputString[_audioQuality]}");
+                $"\nDownloading {trackInfo.TrackTags.AlbumArtist} - {trackInfo.TrackTags.Title} | Quality: {Helpers.AudioQualityToOutputString[_audioQuality]}");
 
             byte[] encryptedBytes = await _deezerHttp.DownloadTrack(downloadUrl);
 
@@ -339,7 +307,7 @@ namespace loc0Loadr
                 return new byte[0];
             }
 
-            return EncryptionHandler.DecryptTrack(encryptedBytes, _trackInfo.TrackTags.Id);
+            return EncryptionHandler.DecryptTrack(encryptedBytes, trackInfo.TrackTags.Id);
         }
 
         private async Task<byte[]> GetAndSaveAlbumArt(string pictureId, string saveDirectory)
@@ -371,4 +339,6 @@ namespace loc0Loadr
             return coverBytes;
         }
     }
+    
+    
 }

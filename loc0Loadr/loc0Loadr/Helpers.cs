@@ -55,7 +55,7 @@ namespace loc0Loadr
             Console.Write($"\n{message}");
             string input = Console.ReadLine()?.Trim();
 
-            while (string.IsNullOrWhiteSpace(input))
+            while (String.IsNullOrWhiteSpace(input))
             {
                 RedMessage("Invalid Input");
                 Console.Write($"\n{message}");
@@ -79,7 +79,7 @@ namespace loc0Loadr
             Console.Write("\nEnter choice: ");
             string input = Console.ReadLine()?.Trim();
 
-            while (!int.TryParse(input, out int number)
+            while (!Int32.TryParse(input, out int number)
             || !Enumerable.Range(start, count).Contains(number))
             {
                 RedMessage("Invalid Input");
@@ -92,7 +92,7 @@ namespace loc0Loadr
 
         public static string GetCid()
         {
-            string cid = string.Empty;
+            string cid = String.Empty;
 
             for (var i = 0; i < 9; i++)
             {
@@ -138,7 +138,7 @@ namespace loc0Loadr
             word = word.Trim();
             
             var invalidChars = Path.GetInvalidFileNameChars();
-            word = string.Join("_", word.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+            word = String.Join("_", word.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
 
             word = Regex.Replace(word, @"\s(\s+)", "$1");
 
@@ -147,7 +147,7 @@ namespace loc0Loadr
 
         public static string PadNumber(this string word)
         {
-            return int.Parse(word) < 10 
+            return Int32.Parse(word) < 10 
                 ? $"0{word}" 
                 : word;
         }
@@ -216,6 +216,32 @@ namespace loc0Loadr
             }
 
             return true;
+        }
+
+        public static bool CheckIfQualityIsAvailable(AudioQuality audioQuality, TrackInfo trackInfo)
+        {
+            switch (audioQuality)
+            {
+                case AudioQuality.Flac:
+                    return trackInfo.TrackTags.Flac != 0;
+                case AudioQuality.Mp3320:
+                    return trackInfo.TrackTags.Mp3320 != 0;
+                case AudioQuality.Mp3256:
+                    return trackInfo.TrackTags.Mp3256 != 0;
+                case AudioQuality.Mp3128:
+                    return trackInfo.TrackTags.Mp3128 != 0;
+                default:
+                    return false;
+            }
+        }
+
+        public static string GetTempTrackPath(string saveLocationDirectory, string id)
+        {
+            string filename = $"{id}.tmp";
+
+            string tempFilePath = Path.Combine(saveLocationDirectory, filename);
+
+            return tempFilePath;
         }
     }
 }
