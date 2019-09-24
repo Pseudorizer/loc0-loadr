@@ -77,14 +77,20 @@ namespace loc0Loadr
                 Helpers.RedMessage("Failed to get album info");
                 return false;
             }
-            
-            List<bool> results = new List<bool>();
 
             Console.WriteLine($"\nDownloading {albumInfo.AlbumTags.Title} ({albumInfo.AlbumTags.Type})");
-
-            List<Task> tasks = new List<Task>();
             
-            var throttler = new SemaphoreSlim(3);
+            List<bool> results = new List<bool>();
+            List<Task> tasks = new List<Task>();
+
+            var maxConcurrentDownloads = Configuration.GetValue<int>("maxConcurrentDownloads");
+
+            if (maxConcurrentDownloads <= 0)
+            {
+                maxConcurrentDownloads = 3;
+            }
+            
+            var throttler = new SemaphoreSlim(maxConcurrentDownloads);
                 
             foreach (JObject albumInfoSong in albumInfo.Songs.Children<JObject>())
             {
@@ -103,12 +109,15 @@ namespace loc0Loadr
                         }
                         finally
                         {
+                            // ReSharper disable once AccessToDisposedClosure
                             throttler.Release();
                         }
                     }));
             }
 
             await Task.WhenAll(tasks);
+            
+            throttler.Dispose();
             
             int downloadsSucceed = results.Count(x => x);
 
