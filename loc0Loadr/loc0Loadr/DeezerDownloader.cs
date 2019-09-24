@@ -87,15 +87,6 @@ namespace loc0Loadr
                 bool downloadResult = await ProcessTrack(trackId);
                 
                 results.Add(downloadResult);
-                
-                if (downloadResult)
-                {
-                    Helpers.GreenMessage("Download Complete");
-                }
-                else
-                {
-                    Helpers.RedMessage("Download Failed");
-                }
             }
             
             _albumInfo = null;
@@ -205,6 +196,8 @@ namespace loc0Loadr
             File.Move(tempTrackPath, saveLocation);
 
             _trackInfo = null;
+            
+            Helpers.GreenMessage("Download Complete");
 
             return true;
         }
