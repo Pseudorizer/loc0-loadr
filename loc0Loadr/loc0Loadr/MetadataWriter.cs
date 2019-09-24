@@ -6,7 +6,6 @@ using System.Net.Mime;
 using FlacLibSharp;
 using loc0Loadr.Models;
 using TagLib;
-using TagLib.Flac;
 using TagLib.Id3v2;
 using Metadata = loc0Loadr.Models.Metadata;
 using Picture = TagLib.Picture;

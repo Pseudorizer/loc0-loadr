@@ -1,11 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using loc0Loadr.Enums;
-using loc0Loadr.Models;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace loc0Loadr
@@ -58,6 +55,12 @@ namespace loc0Loadr
         public async Task<bool> ProcessAlbum(string id)
         {
             _albumInfo = await GetAlbumInfo(id);
+
+            if (_albumInfo == null)
+            {
+                Helpers.RedMessage("Failed to get album info");
+                return false;
+            }
                 
             foreach (JObject albumInfoSong in _albumInfo.Songs.Children<JObject>())
             {
@@ -113,6 +116,7 @@ namespace loc0Loadr
 
                 if (_trackInfo == null)
                 {
+                    Helpers.RedMessage("Failed to get tracl info");
                     return false;
                 }
             }
@@ -124,6 +128,12 @@ namespace loc0Loadr
                 if (albumId != "0")
                 {
                     _albumInfo = await GetAlbumInfo(albumId);
+
+                    if (_albumInfo == null)
+                    {
+                        Helpers.RedMessage("Failed to get album info");
+                        return false;
+                    }
                 }
             }
 

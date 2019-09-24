@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -10,7 +9,6 @@ using loc0Loadr.Enums;
 using loc0Loadr.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using File = System.IO.File;
 
 namespace loc0Loadr
 {
