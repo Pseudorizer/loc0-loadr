@@ -1,7 +1,6 @@
 using System;
 using System.Security.Cryptography;
 using System.Text;
-using Newtonsoft.Json.Linq;
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Paddings;
@@ -11,14 +10,7 @@ namespace loc0Loadr
 {
     internal static class EncryptionHandler
     { // all credit for the actual logic goes to the devs at smloadr, this is just my implementation
-        public static string GetDownloadUrl(JToken trackInfo)
-        {
-            char cdn = trackInfo["MD5_ORIGIN"].Value<string>()[0];
-            string encryptedFilename = GetEncryptedFilename(trackInfo);
 
-            return $"https://e-cdns-proxy-{cdn}.dzcdn.net/mobile/1/{encryptedFilename}";
-        }
-        
         public static string GetDownloadUrl(TrackInfo trackInfo, int qualityId)
         {
             char cdn = trackInfo.TrackTags.Md5Origin[0];
@@ -71,45 +63,6 @@ namespace loc0Loadr
             return decryptedBytes;
         }
 
-        private static string GetEncryptedFilename(JToken trackInfo)
-        {
-            var md5Origin = trackInfo["MD5_ORIGIN"].Value<string>();
-            var qualityId = trackInfo["QUALITY"]["AudioEnumId"].Value<string>();
-            var sngId = trackInfo["SNG_ID"].Value<string>();
-            var mediaVersion = trackInfo["MEDIA_VERSION"].Value<string>();
-            
-            string itemsJoined = string.Join("¤", md5Origin, qualityId, sngId, mediaVersion);
-            string newHash = string.Empty;
-
-            using (MD5 md5 = MD5.Create())
-            {
-                byte[] itemsJoinedBytes = Encoding.ASCII.GetBytes(itemsJoined);
-                itemsJoinedBytes = FixStarCharBytes(itemsJoinedBytes);
-
-                byte[] itemsJoinedHashed = md5.ComputeHash(itemsJoinedBytes);
-
-                var hexBuilder = new StringBuilder(itemsJoinedHashed.Length * 2);
-
-                foreach (byte b in itemsJoinedHashed)
-                {
-                    hexBuilder.Append(b.ToString("x2"));
-                }
-
-                hexBuilder.Append("¤")
-                    .Append(itemsJoined)
-                    .Append("¤");
-
-                newHash = hexBuilder.ToString();
-            }
-
-            while (newHash.Length % 16 != 0)
-            {
-                newHash += " ";
-            }
-
-            return AesEncryptHash(newHash);
-        }
-        
         private static string GetEncryptedFilename(TrackInfo trackInfo, string qualityId)
         {
             string md5Origin = trackInfo.TrackTags.Md5Origin;

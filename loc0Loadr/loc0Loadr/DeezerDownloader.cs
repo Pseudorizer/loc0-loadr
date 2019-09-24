@@ -173,6 +173,9 @@ namespace loc0Loadr
                 : TrackInfo.BuildTrackInfo(trackInfoJObject);
         }
 
+        // the way this works is that if the wanted quality was not found, the next best will be tried and so on
+        // until it wraps around to the start and tries the lower quality options, starting at highest lower quality
+        // I.E. 320 -> FLAC -> 256 -> 128 -> null
         private bool UpdateAudioQualityToAvailable()
         {
             var enumIds = new List<int> {1, 5, 3, 9};
