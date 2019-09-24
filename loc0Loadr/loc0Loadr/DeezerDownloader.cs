@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using loc0Loadr.Enums;
 using Newtonsoft.Json.Linq;
-using TagLib.Riff;
 using File = System.IO.File;
 
 namespace loc0Loadr
@@ -334,6 +333,23 @@ namespace loc0Loadr
 
         private async Task<byte[]> GetAndSaveAlbumArt(string pictureId, string saveDirectory)
         {
+            string coverPath = Path.Combine(saveDirectory, "cover.jpg");
+            
+            if (File.Exists(coverPath))
+            {
+                while (true)
+                {
+                    try
+                    {
+                        return File.ReadAllBytes(coverPath);
+                    }
+                    catch (Exception)
+                    {
+                        await Task.Delay(10); // i have no idea if this will actually work
+                    }
+                }
+            }
+            
             byte[] coverBytes = await _deezerHttp.GetAlbumArt(pictureId);
 
             if (coverBytes.Length == 0)
@@ -342,8 +358,6 @@ namespace loc0Loadr
                 return new byte[0];
             }
 
-            string coverPath = Path.Combine(saveDirectory, "cover.jpg");
-
             if (File.Exists(coverPath) && new FileInfo(coverPath).Length == coverBytes.Length)
             {
                 return coverBytes;
@@ -351,7 +365,10 @@ namespace loc0Loadr
             
             try
             {
-                File.WriteAllBytes(coverPath, coverBytes);
+                using (FileStream coverFileStream = File.Create(coverPath))
+                {
+                    coverFileStream.Write(coverBytes);
+                }
             }
             catch (Exception ex)
             {
