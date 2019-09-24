@@ -13,7 +13,9 @@ namespace loc0Loadr
     {
         private readonly DeezerHttp _deezerHttp;
         private AudioQuality _audioQuality;
-        private string _audioQualityOutput => Helpers.AudioQualityToOutputString[_audioQuality];
+        private string AudioQualityOutput => Helpers.AudioQualityToOutputString[_audioQuality];
+        private TrackInfo _trackInfo;
+        private AlbumInfo _albumInfo;
 
         public DeezerDownloader(DeezerHttp deezerHttp, AudioQuality audioQuality)
         {
@@ -55,26 +57,20 @@ namespace loc0Loadr
 
         public async Task<bool> ProcessAlbum(string id)
         {
-            AlbumInfo albumInfo = await GetAlbumInfo(id);
+            _albumInfo = await GetAlbumInfo(id);
                 
-            foreach (JObject albumInfoSong in albumInfo.Songs.Children<JObject>())
+            foreach (JObject albumInfoSong in _albumInfo.Songs.Children<JObject>())
             {
                 var trackId = albumInfoSong["SNG_ID"].Value<string>();
 
-                TrackInfo trackInfo = TrackInfo.BuildTrackInfo(albumInfoSong);
+                _trackInfo = TrackInfo.BuildTrackInfo(albumInfoSong);
                 
-                var f = await ProcessTrack(trackId, albumInfo, trackInfo);
+                var f = await ProcessTrack(trackId);
             }
 
             return true;
         }
 
-        public async Task<bool> DownloadPlaylist(string id)
-        {
-            
-            return true;
-        }
-        
         private async Task<AlbumInfo> GetAlbumInfo(string id)
         {
             if (string.IsNullOrWhiteSpace(id))
@@ -105,6 +101,45 @@ namespace loc0Loadr
             return AlbumInfo.BuildAlbumInfo(albumJson, officialAlbumJson);
         }
 
+        public async Task<bool> DownloadPlaylist(string id)
+        {
+            
+            return true;
+        }
+
+        public async Task<bool> ProcessTrack(string id)
+        {
+            if (_trackInfo == null)
+            {
+                _trackInfo = await GetTrackInfo(id);
+
+                if (_trackInfo == null)
+                {
+                    return false;
+                }
+            }
+
+            if (_albumInfo == null)
+            {
+                var albumId = _trackInfo.TrackJson["ALB_ID"].Value<string>();
+
+                if (albumId != "0")
+                {
+                    _albumInfo = await GetAlbumInfo(albumId);
+                }
+            }
+
+            if (!UpdateAudioQualityToAvailable())
+            {
+                Helpers.RedMessage("Failed to find valid quality");
+                return false;
+            }
+
+            string saveLocation = BuildSaveLocation();
+            
+            return true;
+        }
+
         private async Task<TrackInfo> GetTrackInfo(string id)
         {
             if (string.IsNullOrWhiteSpace(id))
@@ -122,42 +157,7 @@ namespace loc0Loadr
                 : TrackInfo.BuildTrackInfo(trackInfoJObject);
         }
 
-        public async Task<bool> ProcessTrack(string id, AlbumInfo albumInfo = null, TrackInfo trackInfo = null)
-        {
-            if (trackInfo == null)
-            {
-                trackInfo = await GetTrackInfo(id);
-
-                if (trackInfo == null)
-                {
-                    return false;
-                }
-            }
-
-            if (albumInfo == null)
-            {
-                var albumId = trackInfo.TrackJson["ALB_ID"].Value<string>();
-
-                if (albumId != "0")
-                {
-                    albumInfo = await GetAlbumInfo(albumId);
-                
-                    if (albumInfo == null)
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            if (!UpdateAudioQualityToAvailable(trackInfo))
-            {
-                Helpers.RedMessage("SHT");
-            }
-            
-            return true;
-        }
-
-        private bool UpdateAudioQualityToAvailable(TrackInfo trackInfo)
+        private bool UpdateAudioQualityToAvailable()
         {
             var enumIds = new List<int> {1, 5, 3, 9};
 
@@ -169,7 +169,7 @@ namespace loc0Loadr
                 startIndex = 0;
             }
 
-            if (ValidAudioQualityFound(trackInfo.TrackTags, enumIds, startIndex, enumIds.Count))
+            if (ValidAudioQualityFound(enumIds, startIndex, enumIds.Count))
             {
                 return true;
             }
@@ -180,16 +180,16 @@ namespace loc0Loadr
                 enumIds.Reverse();
             }
 
-            return ValidAudioQualityFound(trackInfo.TrackTags, enumIds, 0, startIndex);
+            return ValidAudioQualityFound(enumIds, 0, startIndex);
         }
 
-        private bool ValidAudioQualityFound(TrackTags trackTags, IReadOnlyList<int> enumIds, int startIndex, int endIndex)
+        private bool ValidAudioQualityFound(IReadOnlyList<int> enumIds, int startIndex, int endIndex)
         {
             for (int index = startIndex; index < endIndex; index++)
             {
                 int enumId = enumIds[index];
                 var tempAudioQuality = (AudioQuality) enumId;
-                bool qualityIsAvailable = CheckIfQualityIsAvailable(trackTags, tempAudioQuality);
+                bool qualityIsAvailable = CheckIfQualityIsAvailable(tempAudioQuality);
 
                 if (qualityIsAvailable)
                 {
@@ -201,21 +201,28 @@ namespace loc0Loadr
             return false;
         }
         
-        private bool CheckIfQualityIsAvailable(TrackTags trackTags, AudioQuality audioQuality)
+        private bool CheckIfQualityIsAvailable(AudioQuality audioQuality)
         {
             switch (audioQuality)
             {
                 case AudioQuality.Flac:
-                    return trackTags.Flac != 0;
+                    return _trackInfo.TrackTags.Flac != 0;
                 case AudioQuality.Mp3320:
-                    return trackTags.Mp3320 != 0;
+                    return _trackInfo.TrackTags.Mp3320 != 0;
                 case AudioQuality.Mp3256:
-                    return trackTags.Mp3256 != 0;
+                    return _trackInfo.TrackTags.Mp3256 != 0;
                 case AudioQuality.Mp3128:
-                    return trackTags.Mp3128 != 0;
+                    return _trackInfo.TrackTags.Mp3128 != 0;
                 default:
                     return false;
             }
+        }
+
+        private string BuildSaveLocation()
+        {
+            string artist = _trackInfo.TrackTags.Artists[0].Name;
+
+            return "";
         }
     }
 }

@@ -10,6 +10,9 @@ namespace loc0Loadr.Models
         [JsonProperty("SNG_TITLE")]
         public string Title { get; set; }
         
+        [JsonProperty("ART_NAME")]
+        public string ArtistName { get; set; }
+        
         [JsonProperty("ARTISTS")]
         public Artists[] Artists { get; set; }
         
