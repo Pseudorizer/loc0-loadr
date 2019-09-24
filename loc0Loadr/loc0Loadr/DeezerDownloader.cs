@@ -79,12 +79,16 @@ namespace loc0Loadr
             }
             
             List<bool> results = new List<bool>();
+
+            Console.WriteLine($"\nDownloading {_albumInfo.AlbumTags.Title} ({_albumInfo.AlbumTags.Type})");
                 
             foreach (JObject albumInfoSong in _albumInfo.Songs.Children<JObject>())
             {
                 var trackId = albumInfoSong["SNG_ID"].Value<string>();
 
                 bool downloadResult = await ProcessTrack(trackId);
+                
+                _trackInfo = null;
                 
                 results.Add(downloadResult);
             }
@@ -173,7 +177,8 @@ namespace loc0Loadr
 
             if (File.Exists(saveLocation))
             {
-                Helpers.GreenMessage("File already exists");
+                string filename = Path.GetFileName(saveLocation);
+                Helpers.GreenMessage($"{filename} already exists");
                 return true;
             }
 
@@ -195,8 +200,6 @@ namespace loc0Loadr
             
             File.Move(tempTrackPath, saveLocation);
 
-            _trackInfo = null;
-            
             Helpers.GreenMessage("Download Complete");
 
             return true;
@@ -326,7 +329,7 @@ namespace loc0Loadr
             string downloadUrl = EncryptionHandler.GetDownloadUrl(_trackInfo, (int) _audioQuality);
 
             Console.WriteLine(
-                $"Downloading {_trackInfo.TrackTags.AlbumArtist} - {_trackInfo.TrackTags.Title} | Quality: {Helpers.AudioQualityToOutputString[_audioQuality]}");
+                $"\nDownloading {_trackInfo.TrackTags.AlbumArtist} - {_trackInfo.TrackTags.Title} | Quality: {Helpers.AudioQualityToOutputString[_audioQuality]}");
 
             byte[] encryptedBytes = await _deezerHttp.DownloadTrack(downloadUrl);
 
