@@ -25,15 +25,7 @@ namespace loc0Loadr
             {"3", AudioQuality.Mp3320},
             {"4", AudioQuality.Flac},
         };
-        
-        public static readonly Dictionary<string, AudioQuality> KeyToAudioQuality = new Dictionary<string, AudioQuality>
-        {
-            {"FILESIZE_MP3_128", AudioQuality.Mp3128},
-            {"FILESIZE_MP3_256", AudioQuality.Mp3256},
-            {"FILESIZE_MP3_320", AudioQuality.Mp3320},
-            {"FILESIZE_FLAC", AudioQuality.Flac},
-        };
-        
+
         public static readonly Dictionary<AudioQuality, string> AudioQualityToOutputString = new Dictionary<AudioQuality, string>
         {
             {AudioQuality.Mp3128, "MP3 @ 128"},
@@ -141,27 +133,6 @@ namespace loc0Loadr
             }
         }
 
-        public static AudioQuality GetNextAudioLevelDown(AudioQuality audioQuality)
-        {
-            var intId = (int) audioQuality;
-
-            if (intId <= 0)
-            {
-                return default;
-            }
-
-            return (AudioQuality) intId - 1;
-        }
-
-        public static T TryAddTokenValue<T>(JToken tokenToSearch, string jPath)
-        {
-            JToken selectedToken = tokenToSearch.SelectToken(jPath);
-
-            return selectedToken == null
-                ? default
-                : selectedToken.Value<T>();
-        }
-
         public static string SanitseString(this string word)
         {
             word = word.Trim();
@@ -200,8 +171,10 @@ namespace loc0Loadr
             comments[key] = new VorbisCommentValues(values.Where(x => x != null));
         }
 
-        public static bool CreateDirectories(string directoryPath)
+        public static bool WriteTrackBytes(byte[] fileBytes, string savePath)
         {
+            string directoryPath = Path.GetDirectoryName(savePath);
+
             if (!Directory.Exists(directoryPath))
             {
                 try
@@ -213,19 +186,6 @@ namespace loc0Loadr
                     Console.WriteLine(ex.Message);
                     return false;
                 }
-            }
-
-            return true;
-        }
-
-        public static bool WriteTrackBytes(byte[] fileBytes, string savePath)
-        {
-            string directoryPath = Path.GetDirectoryName(savePath);
-
-            if (!CreateDirectories(directoryPath))
-            {
-                RedMessage("Failed to create directories");
-                return false;
             }
 
             try
