@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using loc0Loadr.Enums;
 using Newtonsoft.Json.Linq;
@@ -41,12 +42,27 @@ namespace loc0Loadr
             }
 
             var discographyItems = (JArray) discographyInfo["results"]["data"];
+            
+            List<bool> artistResults = new List<bool>();
 
             foreach (JObject discographyItem in discographyItems.Children<JObject>())
             {
                 var albumId = discographyItem["ALB_ID"].Value<string>();
 
-                bool albumInfo = await ProcessAlbum(albumId);
+                bool albumDownloadResults = await ProcessAlbum(albumId);
+                
+                artistResults.Add(albumDownloadResults);
+            }
+
+            int artistDownloadsFailed = artistResults.Count(x => x == false);
+
+            if (artistDownloadsFailed != artistResults.Count)
+            {
+                Helpers.GreenMessage("Artist download successful");
+            }
+            else
+            {
+                Helpers.RedMessage($"{artistDownloadsFailed}/{artistResults.Count} Failed");
             }
 
             return true;
@@ -61,15 +77,41 @@ namespace loc0Loadr
                 Helpers.RedMessage("Failed to get album info");
                 return false;
             }
+            
+            List<bool> results = new List<bool>();
                 
             foreach (JObject albumInfoSong in _albumInfo.Songs.Children<JObject>())
             {
                 var trackId = albumInfoSong["SNG_ID"].Value<string>();
+
+                bool downloadResult = await ProcessTrack(trackId);
                 
-                var f = await ProcessTrack(trackId);
+                results.Add(downloadResult);
+                
+                if (downloadResult)
+                {
+                    Helpers.GreenMessage("Download Complete");
+                }
+                else
+                {
+                    Helpers.RedMessage("Download Failed");
+                }
+            }
+            
+            _albumInfo = null;
+            
+            int downloadsSucceed = results.Count(x => x);
+
+            if (downloadsSucceed == results.Count)
+            {
+                Helpers.GreenMessage("Album downloaded successfully");
+            }
+            else
+            {
+                Helpers.RedMessage($"{downloadsSucceed}/{results.Count} Downloaded");
             }
 
-            return true;
+            return downloadsSucceed == results.Count;
         }
 
         private async Task<AlbumInfo> GetAlbumInfo(string id)
@@ -93,12 +135,6 @@ namespace loc0Loadr
             
             JObject officialAlbumJson = await _deezerHttp.HitOfficialApi("album", id);
 
-            // ReSharper disable once ConvertIfStatementToReturnStatement
-            if (officialAlbumJson == null)
-            {
-                return AlbumInfo.BuildAlbumInfo(albumJson, null);
-            }
-            
             return AlbumInfo.BuildAlbumInfo(albumJson, officialAlbumJson);
         }
 
@@ -116,14 +152,14 @@ namespace loc0Loadr
 
                 if (_trackInfo == null)
                 {
-                    Helpers.RedMessage("Failed to get tracl info");
+                    Helpers.RedMessage("Failed to get track info");
                     return false;
                 }
             }
 
             if (_albumInfo == null)
             {
-                var albumId = _trackInfo.TrackJson["ALB_ID"].Value<string>();
+                string albumId = _trackInfo.TrackTags.AlbumId;
                 
                 _albumInfo = await GetAlbumInfo(albumId);
 
@@ -160,8 +196,15 @@ namespace loc0Loadr
 
             byte[] albumCover = await GetAndSaveAlbumArt(_albumInfo.AlbumTags.PictureId, saveLocationDirectory);
             
-            var e = new NewMetadataWriter(_trackInfo, _albumInfo, tempTrackPath, albumCover);
-            e.WriteMetaData(_audioQuality == AudioQuality.Flac);
+            var metadataWriter = new MetadataWriter(_trackInfo, _albumInfo, tempTrackPath, albumCover);
+            if (!metadataWriter.WriteMetaData(_audioQuality == AudioQuality.Flac))
+            {
+                Helpers.RedMessage("Failed to write tags");
+            }
+            
+            File.Move(tempTrackPath, saveLocation);
+
+            _trackInfo = null;
 
             return true;
         }
@@ -251,17 +294,18 @@ namespace loc0Loadr
 
         private string BuildSaveLocation()
         {
-            string artist = _trackInfo.TrackTags.ArtistName.SanitseString();
+            string artist = _trackInfo.TrackTags.AlbumArtist.SanitseString();
             string type = _albumInfo.AlbumTags.Type.SanitseString();
             string albumTitle = _albumInfo.AlbumTags.Title.SanitseString();
             string trackTitle = _trackInfo.TrackTags.Title.SanitseString();
-            string discNumber = _trackInfo.TrackTags.DiskNumber.SanitseString();
-            string trackNumber = _trackInfo.TrackTags.TrackNumber.SanitseString();
+            string discNumber = _trackInfo.TrackTags.DiscNumber.SanitseString();
+            string trackNumber = _trackInfo.TrackTags.TrackNumber.SanitseString().PadNumber();
             
             var downloadPath = Configuration.GetValue<string>("downloadLocation");
             string extension = _audioQuality == AudioQuality.Flac
                 ? ".flac"
                 : ".mp3";
+            
             string filename = $"{trackNumber} - {trackTitle}{extension}";
             string directoryPath = $@"{artist}\{albumTitle} ({type})\";
 
@@ -289,7 +333,7 @@ namespace loc0Loadr
             string downloadUrl = EncryptionHandler.GetDownloadUrl(_trackInfo, (int) _audioQuality);
 
             Console.WriteLine(
-                $"Downloading {_trackInfo.TrackTags.ArtistName} - {_trackInfo.TrackTags.Title} | Quality: {Helpers.AudioQualityToOutputString[_audioQuality]}");
+                $"Downloading {_trackInfo.TrackTags.AlbumArtist} - {_trackInfo.TrackTags.Title} | Quality: {Helpers.AudioQualityToOutputString[_audioQuality]}");
 
             byte[] encryptedBytes = await _deezerHttp.DownloadTrack(downloadUrl);
 

@@ -1,3 +1,4 @@
+using System.Linq;
 using loc0Loadr.Models;
 using Newtonsoft.Json.Linq;
 
@@ -15,6 +16,13 @@ namespace loc0Loadr
                 AlbumTags = albumInfoJObject["results"]["DATA"].ToObject<AlbumTags>(),
                 Songs = (JArray) albumInfoJObject["results"]["SONGS"]["data"]
             };
+
+            JToken lastSong = albumInfo.Songs?.Last();
+
+            if (lastSong?["DISK_NUMBER"] != null)
+            {
+                albumInfo.AlbumTags.NumberOfDiscs = lastSong["DISK_NUMBER"].Value<string>();
+            }
 
             if (officialAlbumInfo?["genres"] != null)
             {

@@ -152,9 +152,26 @@ namespace loc0Loadr
                 : word;
         }
 
-        public static UserTextInformationFrame BuildTextInformationFrame(string description, params string[] text)
+        public static TextInformationFrame BuildTextInformationFrame(string frameType, params string[] text)
+        {
+            return new TextInformationFrame(new ByteVector(frameType), StringType.UTF8)
+            {
+                Text = text
+            };
+        }
+        
+        public static UserTextInformationFrame BuildUserTextInformationFrame(string description, params string[] text)
         {
             return new UserTextInformationFrame("TXXX", StringType.UTF8)
+            {
+                Text = text,
+                Description = description
+            };
+        }
+        
+        public static UserTextInformationFrame BuildUserTextInformationFrame(string frameType, string description, params string[] text)
+        {
+            return new UserTextInformationFrame(frameType, StringType.UTF8)
             {
                 Text = text,
                 Description = description

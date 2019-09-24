@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using loc0Loadr.Enums;
@@ -76,31 +78,20 @@ namespace loc0Loadr
             
             var deezerDownloader = new DeezerDownloader(_deezerHttp, audioQuality);
 
-            var result = false;
-            
             switch (type)
             {
                 case "track":
-                    result = await deezerDownloader.ProcessTrack(id);
+                    await deezerDownloader.ProcessTrack(id);
                     break;
                 case "artist":
-                    result = await deezerDownloader.ProcessArtist(id);
+                    await deezerDownloader.ProcessArtist(id);
                     break;
                 case "playlist":
-                    result = await deezerDownloader.DownloadPlaylist(id);
+                    await deezerDownloader.DownloadPlaylist(id);
                     break;
                 case "album":
-                    result = await deezerDownloader.ProcessAlbum(id);
+                    await deezerDownloader.ProcessAlbum(id);
                     break;
-            }
-
-            if (result)
-            {
-                Helpers.GreenMessage("Success");
-            }
-            else
-            {
-                Helpers.RedMessage("Failed");
             }
         }
 

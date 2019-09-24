@@ -11,7 +11,10 @@ namespace loc0Loadr.Models
         public string Title { get; set; }
         
         [JsonProperty("ART_NAME")]
-        public string ArtistName { get; set; }
+        public string AlbumArtist { get; set; }
+        
+        [JsonProperty("ALB_ID")]
+        public string AlbumId { get; set; }
         
         [JsonProperty("ARTISTS")]
         public Artists[] Artists { get; set; }
@@ -39,9 +42,9 @@ namespace loc0Loadr.Models
         
         [JsonIgnore]
         public string Bpm { get; set; }
-        
+
         [JsonProperty("DISK_NUMBER")]
-        public string DiskNumber { get; set; }
+        public string DiscNumber { get; set; }
 
         [JsonProperty("TRACK_NUMBER")]
         public string TrackNumber { get; set; }

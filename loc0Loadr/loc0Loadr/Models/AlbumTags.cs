@@ -15,20 +15,12 @@ namespace loc0Loadr.Models
                 : value;
         }
         
-        private string _numberOfDisks;
-        [JsonProperty("NUMBER_DISK")]
-        public string NumberOfDisks {
-            get => _numberOfDisks;
-            set => _numberOfDisks = value.PadNumber();
-        }
+        [JsonIgnore]
+        public string NumberOfDiscs { get; set; }
 
-        private string _numberOfTracks;
         [JsonProperty("NUMBER_TRACK")]
-        public string NumberOfTracks {
-            get => _numberOfTracks;
-            set => _numberOfTracks = value.PadNumber();
-        }
-        
+        public string NumberOfTracks { get; set; }
+
         [JsonProperty("PHYSICAL_RELEASE_DATE")]
         public string ReleaseDate { get; set; }
         
@@ -42,7 +34,7 @@ namespace loc0Loadr.Models
         public string Label { get; set; }
         
         [JsonProperty("UPC")]
-        public string Barcode { get; set; }
+        public string Upc { get; set; }
         
         [JsonProperty("genres")]
         public Genres Genres { get; set; }
