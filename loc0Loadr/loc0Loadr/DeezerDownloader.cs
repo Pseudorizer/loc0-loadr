@@ -255,8 +255,8 @@ namespace loc0Loadr
             string type = _albumInfo.AlbumTags.Type.SanitseString();
             string albumTitle = _albumInfo.AlbumTags.Title.SanitseString();
             string trackTitle = _trackInfo.TrackTags.Title.SanitseString();
-            string discNumber = _trackInfo.TrackTags.DiskNumber.SanitseString().PadNumber();
-            string trackNumber = _trackInfo.TrackTags.TrackNumber.SanitseString().PadNumber();
+            string discNumber = _trackInfo.TrackTags.DiskNumber.SanitseString();
+            string trackNumber = _trackInfo.TrackTags.TrackNumber.SanitseString();
             
             var downloadPath = Configuration.GetValue<string>("downloadLocation");
             string extension = _audioQuality == AudioQuality.Flac

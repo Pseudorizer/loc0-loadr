@@ -15,11 +15,19 @@ namespace loc0Loadr.Models
                 : value;
         }
         
+        private string _numberOfDisks;
         [JsonProperty("NUMBER_DISK")]
-        public string NumberOfDisks { get; set; }
-        
+        public string NumberOfDisks {
+            get => _numberOfDisks;
+            set => _numberOfDisks = value.PadNumber();
+        }
+
+        private string _numberOfTracks;
         [JsonProperty("NUMBER_TRACK")]
-        public string NumberOfTracks { get; set; }
+        public string NumberOfTracks {
+            get => _numberOfTracks;
+            set => _numberOfTracks = value.PadNumber();
+        }
         
         [JsonProperty("PHYSICAL_RELEASE_DATE")]
         public string ReleaseDate { get; set; }
