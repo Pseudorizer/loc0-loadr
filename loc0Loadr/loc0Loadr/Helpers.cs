@@ -10,6 +10,7 @@ using loc0Loadr.Enums;
 using Newtonsoft.Json.Linq;
 using TagLib;
 using TagLib.Id3v2;
+using File = System.IO.File;
 
 namespace loc0Loadr
 {
@@ -62,7 +63,7 @@ namespace loc0Loadr
             Console.Write($"\n{message}");
             string input = Console.ReadLine()?.Trim();
 
-            while (string.IsNullOrWhiteSpace(input))
+            while (String.IsNullOrWhiteSpace(input))
             {
                 RedMessage("Invalid Input");
                 Console.Write($"\n{message}");
@@ -86,7 +87,7 @@ namespace loc0Loadr
             Console.Write("\nEnter choice: ");
             string input = Console.ReadLine()?.Trim();
 
-            while (!int.TryParse(input, out int number)
+            while (!Int32.TryParse(input, out int number)
             || !Enumerable.Range(start, count).Contains(number))
             {
                 RedMessage("Invalid Input");
@@ -99,7 +100,7 @@ namespace loc0Loadr
 
         public static string GetCid()
         {
-            string cid = string.Empty;
+            string cid = String.Empty;
 
             for (var i = 0; i < 9; i++)
             {
@@ -166,7 +167,7 @@ namespace loc0Loadr
             word = word.Trim();
             
             var invalidChars = Path.GetInvalidFileNameChars();
-            word = string.Join("_", word.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+            word = String.Join("_", word.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
 
             word = Regex.Replace(word, @"\s(\s+)", "$1");
 
@@ -175,7 +176,7 @@ namespace loc0Loadr
 
         public static string PadNumber(this string word)
         {
-            return int.Parse(word) < 10 
+            return Int32.Parse(word) < 10 
                 ? $"0{word}" 
                 : word;
         }
@@ -197,6 +198,47 @@ namespace loc0Loadr
             }
 
             comments[key] = new VorbisCommentValues(values.Where(x => x != null));
+        }
+
+        public static bool CreateDirectories(string directoryPath)
+        {
+            if (!Directory.Exists(directoryPath))
+            {
+                try
+                {
+                    Directory.CreateDirectory(directoryPath);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public static bool WriteTrackBytes(byte[] fileBytes, string savePath)
+        {
+            string directoryPath = Path.GetDirectoryName(savePath);
+
+            if (!CreateDirectories(directoryPath))
+            {
+                RedMessage("Failed to create directories");
+                return false;
+            }
+
+            try
+            {
+                File.WriteAllBytes(savePath, fileBytes);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return false;
+            }
+
+            return true;
         }
     }
 }

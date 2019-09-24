@@ -385,28 +385,20 @@ namespace loc0Loadr
                 {
                     using (HttpResponseMessage apiResponse = await _httpClient.PostAsync(url, body))
                     {
-                        if (!apiResponse.IsSuccessStatusCode)
+                        if (apiResponse.IsSuccessStatusCode)
                         {
-                            attempts++;
-                            continue;
-                        }
+                            string bodyContent = await apiResponse.Content.ReadAsStringAsync();
 
-                        string bodyContent = await apiResponse.Content.ReadAsStringAsync();
-
-                        if (string.IsNullOrWhiteSpace(bodyContent))
-                        {
-                            attempts++;
-                        }
-                        else
-                        {
-                            try
+                            if (!string.IsNullOrWhiteSpace(bodyContent))
                             {
-                                return JObject.Parse(bodyContent);
-                            }
-                            catch (JsonReaderException ex)
-                            {
-                                Console.WriteLine(ex.Message);
-                                attempts++;
+                                try
+                                {
+                                    return JObject.Parse(bodyContent);
+                                }
+                                catch (JsonReaderException ex)
+                                {
+                                    Console.WriteLine(ex.Message);
+                                }
                             }
                         }
                     }
@@ -414,9 +406,9 @@ namespace loc0Loadr
                 catch (HttpRequestException ex)
                 {
                     Console.WriteLine(ex.Message);
-                    attempts++;
                 }
                 
+                attempts++;
                 Helpers.RedMessage("Request failed, waiting 5s...");
                 await Task.Delay(5000);
             }
@@ -435,28 +427,20 @@ namespace loc0Loadr
                     using (HttpResponseMessage albumResponse =
                         await _httpClient.GetAsync($"https://api.deezer.com/{path}/{id}"))
                     {
-                        if (!albumResponse.IsSuccessStatusCode)
+                        if (albumResponse.IsSuccessStatusCode)
                         {
-                            attempts++;
-                            continue;
-                        }
+                            string albumResponseContent = await albumResponse.Content.ReadAsStringAsync();
 
-                        string albumResponseContent = await albumResponse.Content.ReadAsStringAsync();
-
-                        if (string.IsNullOrWhiteSpace(albumResponseContent))
-                        {
-                            attempts++;
-                        }
-                        else
-                        {
-                            try
+                            if (!string.IsNullOrWhiteSpace(albumResponseContent))
                             {
-                                return JObject.Parse(albumResponseContent);
-                            }
-                            catch (JsonReaderException ex)
-                            {
-                                Console.WriteLine(ex.Message);
-                                attempts++;
+                                try
+                                {
+                                    return JObject.Parse(albumResponseContent);
+                                }
+                                catch (JsonReaderException ex)
+                                {
+                                    Console.WriteLine(ex.Message);
+                                }
                             }
                         }
                     }
@@ -464,9 +448,9 @@ namespace loc0Loadr
                 catch (HttpRequestException ex)
                 {
                     Console.WriteLine(ex.Message);
-                    attempts++;
                 }
-                
+
+                attempts++;
                 Helpers.RedMessage("Request failed, waiting 5s...");
                 await Task.Delay(5000);
             }
@@ -474,17 +458,33 @@ namespace loc0Loadr
             return null;
         }
 
-        private async Task<byte[]> DownloadTrack(string url)
+        public async Task<byte[]> DownloadTrack(string url, int retries = 3)
         {
-            using (HttpResponseMessage downloadResponse = await _httpClient.GetAsync(url))
+            var attempts = 1;
+
+            while (attempts <= retries)
             {
-                if (!downloadResponse.IsSuccessStatusCode)
+                try
                 {
-                    return null;
+                    using (HttpResponseMessage downloadResponse = await _httpClient.GetAsync(url))
+                    {
+                        if (downloadResponse.IsSuccessStatusCode)
+                        {
+                            return await downloadResponse.Content.ReadAsByteArrayAsync();
+                        }
+                    }
+                }
+                catch (HttpRequestException ex)
+                {
+                    Console.WriteLine(ex.Message);
                 }
 
-                return await downloadResponse.Content.ReadAsByteArrayAsync();
+                attempts++;
+                Helpers.RedMessage("Request failed, waiting 5s...");
+                await Task.Delay(5000);
             }
+
+            return null;
         }
 
         private async Task<byte[]> DownloadAlbumArt(string albumPictureId, string savePath)

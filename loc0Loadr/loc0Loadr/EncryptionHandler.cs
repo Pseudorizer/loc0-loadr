@@ -18,6 +18,14 @@ namespace loc0Loadr
 
             return $"https://e-cdns-proxy-{cdn}.dzcdn.net/mobile/1/{encryptedFilename}";
         }
+        
+        public static string GetDownloadUrl(TrackInfo trackInfo, int qualityId)
+        {
+            char cdn = trackInfo.TrackTags.Md5Origin[0];
+            string encryptedFilename = GetEncryptedFilename(trackInfo, qualityId.ToString());
+
+            return $"https://e-cdns-proxy-{cdn}.dzcdn.net/mobile/1/{encryptedFilename}";
+        }
 
         public static byte[] DecryptTrack(byte[] downloadBytes, string sngId)
         {
@@ -26,7 +34,7 @@ namespace loc0Loadr
             byte[] keyBytes = Encoding.UTF8.GetBytes(blowfishKey);
             long streamLength = downloadBytes.Length;
 
-            byte[] decryptedBytes = new byte[streamLength];
+            var decryptedBytes = new byte[streamLength];
             var chunkSize = 2048;
             var progress = 0;
 
@@ -69,6 +77,44 @@ namespace loc0Loadr
             var qualityId = trackInfo["QUALITY"]["AudioEnumId"].Value<string>();
             var sngId = trackInfo["SNG_ID"].Value<string>();
             var mediaVersion = trackInfo["MEDIA_VERSION"].Value<string>();
+            
+            string itemsJoined = string.Join("¤", md5Origin, qualityId, sngId, mediaVersion);
+            string newHash = string.Empty;
+
+            using (MD5 md5 = MD5.Create())
+            {
+                byte[] itemsJoinedBytes = Encoding.ASCII.GetBytes(itemsJoined);
+                itemsJoinedBytes = FixStarCharBytes(itemsJoinedBytes);
+
+                byte[] itemsJoinedHashed = md5.ComputeHash(itemsJoinedBytes);
+
+                var hexBuilder = new StringBuilder(itemsJoinedHashed.Length * 2);
+
+                foreach (byte b in itemsJoinedHashed)
+                {
+                    hexBuilder.Append(b.ToString("x2"));
+                }
+
+                hexBuilder.Append("¤")
+                    .Append(itemsJoined)
+                    .Append("¤");
+
+                newHash = hexBuilder.ToString();
+            }
+
+            while (newHash.Length % 16 != 0)
+            {
+                newHash += " ";
+            }
+
+            return AesEncryptHash(newHash);
+        }
+        
+        private static string GetEncryptedFilename(TrackInfo trackInfo, string qualityId)
+        {
+            string md5Origin = trackInfo.TrackTags.Md5Origin;
+            string sngId = trackInfo.TrackTags.Id;
+            string mediaVersion = trackInfo.TrackTags.MediaVersion;
             
             string itemsJoined = string.Join("¤", md5Origin, qualityId, sngId, mediaVersion);
             string newHash = string.Empty;

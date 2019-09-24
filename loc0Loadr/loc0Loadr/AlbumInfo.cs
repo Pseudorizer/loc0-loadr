@@ -22,6 +22,11 @@ namespace loc0Loadr
                 albumInfo.AlbumTags.Genres = officialAlbumInfo["genres"].ToObject<Genres>();
             }
 
+            if (officialAlbumInfo?["record_type"] != null)
+            {
+                albumInfo.AlbumTags.Type = officialAlbumInfo["record_type"].Value<string>();
+            }
+
             if (albumInfo.AlbumTags.NumberOfTracks == null && albumInfoJObject["results"]["SONGS"]?["total"] != null)
             {
                 albumInfo.AlbumTags.NumberOfTracks = albumInfoJObject["results"]["SONGS"]["total"].Value<string>();

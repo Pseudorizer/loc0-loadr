@@ -54,6 +54,12 @@ namespace loc0Loadr.Models
         
         [JsonProperty("SNG_CONTRIBUTORS")]
         public Contributors Contributors { get; set; }
+        
+        [JsonProperty("__TYPE__")]
+        public string Type { get; set; }
+        
+        [JsonProperty("MEDIA_VERSION")]
+        public string MediaVersion { get; set; }
     }
     
     internal class Artists

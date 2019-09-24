@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
@@ -5,6 +6,16 @@ namespace loc0Loadr.Models
 {
     internal class AlbumTags
     {
+        private string _title;
+        [JsonProperty("ALB_TITLE")]
+        public string Title
+        {
+            get => _title;
+            set => _title = string.IsNullOrWhiteSpace(value)
+                ? "Unknown Album"
+                : value;
+        }
+        
         [JsonProperty("NUMBER_DISK")]
         public string NumberOfDisks { get; set; }
         
@@ -28,6 +39,26 @@ namespace loc0Loadr.Models
         
         [JsonProperty("genres")]
         public Genres Genres { get; set; }
+
+        private string _type;
+        [JsonProperty("record_type")]
+        public string Type{
+            get => _type;
+            set
+            {
+                if (string.Equals("eq", value, StringComparison.OrdinalIgnoreCase))
+                {
+                    _type = "EQ";
+                }
+                else if (string.IsNullOrWhiteSpace(value))
+                {
+                    _type = "";
+                }
+                else
+                {
+                    _type = char.ToUpper(value[0]) + value.Substring(1);
+                }
+            }}
     }
 
     internal class Genres

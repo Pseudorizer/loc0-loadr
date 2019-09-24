@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using loc0Loadr.Enums;
@@ -13,7 +14,6 @@ namespace loc0Loadr
     {
         private readonly DeezerHttp _deezerHttp;
         private AudioQuality _audioQuality;
-        private string AudioQualityOutput => Helpers.AudioQualityToOutputString[_audioQuality];
         private TrackInfo _trackInfo;
         private AlbumInfo _albumInfo;
 
@@ -136,7 +136,23 @@ namespace loc0Loadr
             }
 
             string saveLocation = BuildSaveLocation();
-            
+            string saveLocationDirectory = Path.GetDirectoryName(saveLocation);
+            string tempTrackPath = GetTempTrackPath(saveLocationDirectory);
+
+            if (File.Exists(saveLocation))
+            {
+                Helpers.GreenMessage("File already exists");
+                return true;
+            }
+
+            byte[] decryptedBytes = await GetDecryptedBytes();
+
+            if (!Helpers.WriteTrackBytes(decryptedBytes, tempTrackPath))
+            {
+                Helpers.RedMessage("Failed to write file to disk");
+                return false;
+            }
+
             return true;
         }
 
@@ -200,7 +216,7 @@ namespace loc0Loadr
             
             return false;
         }
-        
+
         private bool CheckIfQualityIsAvailable(AudioQuality audioQuality)
         {
             switch (audioQuality)
@@ -220,9 +236,55 @@ namespace loc0Loadr
 
         private string BuildSaveLocation()
         {
-            string artist = _trackInfo.TrackTags.Artists[0].Name;
+            string artist = _trackInfo.TrackTags.ArtistName.SanitseString();
+            string type = _albumInfo.AlbumTags.Type.SanitseString();
+            string albumTitle = _albumInfo.AlbumTags.Title.SanitseString();
+            string trackTitle = _trackInfo.TrackTags.Title.SanitseString();
+            string discNumber = _trackInfo.TrackTags.DiskNumber.SanitseString().PadNumber();
+            string trackNumber = _trackInfo.TrackTags.TrackNumber.SanitseString().PadNumber();
+            
+            var downloadPath = Configuration.GetValue<string>("downloadLocation");
+            string extension = _audioQuality == AudioQuality.Flac
+                ? ".flac"
+                : ".mp3";
+            string filename = $"{trackNumber} - {trackTitle}{extension}";
+            string directoryPath = $@"{artist}\{albumTitle} ({type})\";
 
-            return "";
+            if (int.Parse(discNumber) > 1)
+            {
+                directoryPath += $@"Disc {discNumber}\";
+            }
+
+            string savePath = Path.Combine(downloadPath, directoryPath, filename);
+
+            return savePath;
+        }
+
+        private string GetTempTrackPath(string saveLocationDirectory)
+        {
+            string filename = $"{_trackInfo.TrackTags.Id}.tmp";
+
+            string tempFilePath = Path.Combine(saveLocationDirectory, filename);
+
+            return tempFilePath;
+        }
+
+        private async Task<byte[]> GetDecryptedBytes()
+        {
+            string downloadUrl = EncryptionHandler.GetDownloadUrl(_trackInfo, (int) _audioQuality);
+
+            Console.WriteLine(
+                $"Downloading {_trackInfo.TrackTags.ArtistName} - {_trackInfo.TrackTags.Title} | Quality: {Helpers.AudioQualityToOutputString[_audioQuality]}");
+
+            byte[] encryptedBytes = await _deezerHttp.DownloadTrack(downloadUrl);
+
+            if (encryptedBytes == null || encryptedBytes.Length == 0)
+            {
+                Helpers.RedMessage("Failed to download encrypted track");
+                return new byte[0];
+            }
+
+            return EncryptionHandler.DecryptTrack(encryptedBytes, _trackInfo.TrackTags.Id);
         }
     }
 }
