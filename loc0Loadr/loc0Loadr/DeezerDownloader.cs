@@ -90,7 +90,7 @@ namespace loc0Loadr
                 maxConcurrentDownloads = 3;
             }
             
-            var throttler = new SemaphoreSlim(maxConcurrentDownloads);
+            var throttler = new SemaphoreSlim(1);
                 
             foreach (JObject albumInfoSong in albumInfo.Songs.Children<JObject>())
             {

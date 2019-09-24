@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Paddings;
 using Org.BouncyCastle.Crypto.Parameters;
+using TagLib.Riff;
 
 namespace loc0Loadr
 {
@@ -24,6 +27,32 @@ namespace loc0Loadr
             string blowfishKey = GetBlowfishKey(sngId);
             byte[] keyBytes = Encoding.UTF8.GetBytes(blowfishKey);
             long streamLength = downloadBytes.Length;
+            const int chunk = 6144;
+            const int workers = 4;
+
+            var e = streamLength / chunk;
+            var f = e / workers;
+            var r = f * workers * chunk;
+            var q = streamLength - r;
+            
+            List<Worker> y = new List<Worker>();
+
+            for (var i = 0; i < workers; i++)
+            {
+                var worker = new Worker()
+                {
+                    StartingChunk = i * f * chunk,
+                    EndChunk = (i + 1) * f * chunk,
+                    OrderId = i
+                };
+  
+                if (i + 1 == workers)
+                {
+                    worker.EndChunk += q;
+                }
+                
+                y.Add(worker);
+            }
 
             var decryptedBytes = new byte[streamLength];
             var chunkSize = 2048;
@@ -185,5 +214,12 @@ namespace loc0Loadr
 
             return blowfishKey;
         }
+    }
+
+    internal class Worker
+    {
+        public long StartingChunk { get; set; }
+        public long EndChunk { get; set; }
+        public int OrderId { get; set; }
     }
 }
