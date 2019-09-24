@@ -21,7 +21,6 @@ namespace loc0Loadr
 
         public static byte[] DecryptTrack(byte[] downloadBytes, string sngId)
         {
-            Console.WriteLine("Decrypting track");
             string blowfishKey = GetBlowfishKey(sngId);
             byte[] keyBytes = Encoding.UTF8.GetBytes(blowfishKey);
             long streamLength = downloadBytes.Length;

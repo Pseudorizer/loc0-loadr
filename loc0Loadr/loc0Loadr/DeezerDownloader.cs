@@ -2,9 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using loc0Loadr.Enums;
 using Newtonsoft.Json.Linq;
+using TagLib.Riff;
+using File = System.IO.File;
 
 namespace loc0Loadr
 {
@@ -79,15 +82,34 @@ namespace loc0Loadr
             List<bool> results = new List<bool>();
 
             Console.WriteLine($"\nDownloading {albumInfo.AlbumTags.Title} ({albumInfo.AlbumTags.Type})");
+
+            List<Task> tasks = new List<Task>();
+            
+            var throttler = new SemaphoreSlim(3);
                 
             foreach (JObject albumInfoSong in albumInfo.Songs.Children<JObject>())
             {
-                var trackId = albumInfoSong["SNG_ID"].Value<string>();
-
-                bool downloadResult = await ProcessTrack(trackId, albumInfo);
+                await throttler.WaitAsync();
                 
-                results.Add(downloadResult);
+                tasks.Add(
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var trackId = albumInfoSong["SNG_ID"].Value<string>();
+
+                            bool downloadResult = await ProcessTrack(trackId, albumInfo);
+                
+                            results.Add(downloadResult);
+                        }
+                        finally
+                        {
+                            throttler.Release();
+                        }
+                    }));
             }
+
+            await Task.WhenAll(tasks);
             
             int downloadsSucceed = results.Count(x => x);
 
@@ -194,7 +216,7 @@ namespace loc0Loadr
             
             File.Move(tempTrackPath, saveLocation);
 
-            Helpers.GreenMessage("Download Complete");
+            Helpers.GreenMessage($"{trackInfo.TrackTags.AlbumArtist} - {trackInfo.TrackTags.Title} Download Complete");
 
             return true;
         }

@@ -31,8 +31,6 @@ namespace loc0Loadr
         
         public bool WriteMetaData(bool isFlac)
         {
-            Console.WriteLine("Writing tags");
-            
             return isFlac
                 ? WriteFlacMetadata()
                 : WriteMp3Metadata();
