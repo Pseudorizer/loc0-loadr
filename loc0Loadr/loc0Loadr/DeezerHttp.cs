@@ -247,28 +247,35 @@ namespace loc0Loadr
             return null;
         }
 
-        private async Task<byte[]> DownloadAlbumArt(string albumPictureId, string savePath)
+        public async Task<byte[]> GetAlbumArt(string albumPictureId, int retries = 3)
         {
             string url = $"https://e-cdns-images.dzcdn.net/images/cover/{albumPictureId}/1400x1400-000000-94-0-0.jpg";
 
-            using (HttpResponseMessage albumCoverResponse = await _httpClient.GetAsync(url))
-            {
-                if (!albumCoverResponse.IsSuccessStatusCode)
-                {
-                    return new byte[0];
-                }
+            var attempts = 1;
 
-                using (Stream coverStream = await albumCoverResponse.Content.ReadAsStreamAsync())
+            while (attempts <= retries)
+            {
+                try
                 {
-                    using (FileStream fileStream = File.Create(savePath))
+                    using (HttpResponseMessage albumCoverResponse = await _httpClient.GetAsync(url))
                     {
-                        coverStream.Seek(0, SeekOrigin.Begin);
-                        coverStream.CopyTo(fileStream);
+                        if (albumCoverResponse.IsSuccessStatusCode)
+                        {
+                            return await albumCoverResponse.Content.ReadAsByteArrayAsync();
+                        }
                     }
                 }
+                catch (HttpRequestException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
 
-                return await albumCoverResponse.Content.ReadAsByteArrayAsync();
+                attempts++;
+                Helpers.RedMessage("Request failed, waiting 5s...");
+                await Task.Delay(5000);
             }
+            
+            return new byte[0];
         }
 
         public void Dispose()

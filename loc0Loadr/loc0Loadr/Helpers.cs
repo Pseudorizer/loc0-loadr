@@ -55,7 +55,7 @@ namespace loc0Loadr
             Console.Write($"\n{message}");
             string input = Console.ReadLine()?.Trim();
 
-            while (String.IsNullOrWhiteSpace(input))
+            while (string.IsNullOrWhiteSpace(input))
             {
                 RedMessage("Invalid Input");
                 Console.Write($"\n{message}");
@@ -79,7 +79,7 @@ namespace loc0Loadr
             Console.Write("\nEnter choice: ");
             string input = Console.ReadLine()?.Trim();
 
-            while (!Int32.TryParse(input, out int number)
+            while (!int.TryParse(input, out int number)
             || !Enumerable.Range(start, count).Contains(number))
             {
                 RedMessage("Invalid Input");
@@ -92,7 +92,7 @@ namespace loc0Loadr
 
         public static string GetCid()
         {
-            string cid = String.Empty;
+            string cid = string.Empty;
 
             for (var i = 0; i < 9; i++)
             {
@@ -138,7 +138,7 @@ namespace loc0Loadr
             word = word.Trim();
             
             var invalidChars = Path.GetInvalidFileNameChars();
-            word = String.Join("_", word.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+            word = string.Join("_", word.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
 
             word = Regex.Replace(word, @"\s(\s+)", "$1");
 
@@ -147,7 +147,7 @@ namespace loc0Loadr
 
         public static string PadNumber(this string word)
         {
-            return Int32.Parse(word) < 10 
+            return int.Parse(word) < 10 
                 ? $"0{word}" 
                 : word;
         }

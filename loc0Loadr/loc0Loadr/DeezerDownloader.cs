@@ -153,6 +153,8 @@ namespace loc0Loadr
                 return false;
             }
 
+            byte[] albumCover = await GetAndSaveAlbumArt(_albumInfo.AlbumTags.PictureId, saveLocationDirectory);
+
             return true;
         }
 
@@ -288,6 +290,35 @@ namespace loc0Loadr
             }
 
             return EncryptionHandler.DecryptTrack(encryptedBytes, _trackInfo.TrackTags.Id);
+        }
+
+        private async Task<byte[]> GetAndSaveAlbumArt(string pictureId, string saveDirectory)
+        {
+            byte[] coverBytes = await _deezerHttp.GetAlbumArt(pictureId);
+
+            if (coverBytes.Length == 0)
+            {
+                Helpers.RedMessage("Failed to get album cover");
+                return new byte[0];
+            }
+
+            string coverPath = Path.Combine(saveDirectory, "cover.jpg");
+
+            if (File.Exists(coverPath) && new FileInfo(coverPath).Length == coverBytes.Length)
+            {
+                return coverBytes;
+            }
+            
+            try
+            {
+                File.WriteAllBytes(coverPath, coverBytes);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+
+            return coverBytes;
         }
     }
 }
