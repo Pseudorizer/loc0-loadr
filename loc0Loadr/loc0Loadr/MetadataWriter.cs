@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using FlacLibSharp;
+using loc0Loadr.Models;
 using TagLib;
 using TagLib.Flac;
 using TagLib.Id3v2;
@@ -291,20 +292,20 @@ namespace loc0Loadr
                 comments["Album Artist"] = new VorbisCommentValues(_trackInfo.TrackTags.ArtistName ?? "");
                 comments["REPLAYGAIN_TRACK_GAIN"] = new VorbisCommentValues(_trackInfo.TrackTags.Gain ?? "");
 
-/*                if (_metadata.Lyrics != null)
+                if (_trackInfo.Lyrics != null)
                 {
-                    comments["Lyrics"] = new VorbisCommentValues(_metadata.Lyrics.UnSyncedLyrics ?? "");
+                    comments["Lyrics"] = new VorbisCommentValues(_trackInfo.Lyrics.UnSyncedLyrics ?? "");
 
                     WriteLyricsFile();
                 }
                 
-                Helpers.AddTagIfNotNull(comments, "Composers", _metadata.Contributors.Composers);
-                Helpers.AddTagIfNotNull(comments, "Publishers", _metadata.Contributors.Publishers);
-                Helpers.AddTagIfNotNull(comments, "Producers", _metadata.Contributors.Producers);
-                Helpers.AddTagIfNotNull(comments, "Engineers", _metadata.Contributors.Engineers);
-                Helpers.AddTagIfNotNull(comments, "Writers", _metadata.Contributors.Writers);
-                Helpers.AddTagIfNotNull(comments, "Mixers", _metadata.Contributors.Mixers);
-                Helpers.AddTagIfNotNull(comments, "Authors", _metadata.Contributors.Authors);*/
+                Helpers.AddTagIfNotNull(comments, "Composers", _trackInfo.TrackTags.Contributors.Composers);
+                Helpers.AddTagIfNotNull(comments, "Publishers", _trackInfo.TrackTags.Contributors.Publishers);
+                Helpers.AddTagIfNotNull(comments, "Producers", _trackInfo.TrackTags.Contributors.Producers);
+                Helpers.AddTagIfNotNull(comments, "Engineers", _trackInfo.TrackTags.Contributors.Engineers);
+                Helpers.AddTagIfNotNull(comments, "Writers", _trackInfo.TrackTags.Contributors.Writers);
+                Helpers.AddTagIfNotNull(comments, "Mixers", _trackInfo.TrackTags.Contributors.Mixers);
+                Helpers.AddTagIfNotNull(comments, "Authors", _trackInfo.TrackTags.Contributors.Authors);
 
                 file.Metadata.Add(comments);
 
@@ -419,7 +420,7 @@ namespace loc0Loadr
 
         private void WriteLyricsFile()
         {
-            /*var syncedLyrics = _trackInfo.TrackTags.Lyrics.SyncedLyrics
+            IEnumerable<SyncedLyrics> syncedLyrics = _trackInfo.Lyrics.SyncedLyrics
                 .Where(y => y != null)
                 .Where(x => !string.IsNullOrWhiteSpace(x.Timestamp) || !string.IsNullOrWhiteSpace(x.Line));
 
@@ -436,7 +437,7 @@ namespace loc0Loadr
             catch (IOException ex)
             {
                 Console.WriteLine(ex.Message);
-            }*/
+            }
         }
     }
 }

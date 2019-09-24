@@ -104,9 +104,9 @@ namespace loc0Loadr.Models
         public string[] Writers { get; set; }
         
         [JsonProperty("author")]
-        public string[] Author { get; set; }
+        public string[] Authors { get; set; }
         
         [JsonProperty("mixer")]
-        public string[] Mixer { get; set; }
+        public string[] Mixers { get; set; }
     }
 }

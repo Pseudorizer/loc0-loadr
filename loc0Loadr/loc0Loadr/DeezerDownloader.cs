@@ -152,6 +152,9 @@ namespace loc0Loadr
             }
 
             byte[] albumCover = await GetAndSaveAlbumArt(_albumInfo.AlbumTags.PictureId, saveLocationDirectory);
+            
+            var e = new NewMetadataWriter(_trackInfo, _albumInfo, tempTrackPath, albumCover);
+            e.WriteMetaData(_audioQuality == AudioQuality.Flac);
 
             return true;
         }
