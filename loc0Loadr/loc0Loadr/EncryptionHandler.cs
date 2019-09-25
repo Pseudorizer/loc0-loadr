@@ -72,10 +72,10 @@ namespace loc0Loadr
             const int chunk = 6144;
             const int workersCount = 4;
 
-            long e = streamLength / chunk;
-            long f = e / workersCount;
-            long r = f * workersCount * chunk;
-            long remainingBytes = streamLength - r;
+            long totalNumberOfChunks = streamLength / chunk;
+            long chunksPerWorker = totalNumberOfChunks / workersCount;
+            long subTotal = chunksPerWorker * workersCount * chunk;
+            long remainingBytes = streamLength - subTotal;
 
             var workers = new List<Worker>();
 
@@ -83,8 +83,8 @@ namespace loc0Loadr
             {
                 var worker = new Worker()
                 {
-                    StartingOffset = i * f * chunk,
-                    EndOffset = (i + 1) * f * chunk,
+                    StartingOffset = i * chunksPerWorker * chunk,
+                    EndOffset = (i + 1) * chunksPerWorker * chunk,
                     OrderId = i
                 };
 
