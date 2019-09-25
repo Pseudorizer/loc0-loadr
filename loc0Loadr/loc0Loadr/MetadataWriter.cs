@@ -217,7 +217,7 @@ namespace loc0Loadr
 
                     if (!string.IsNullOrWhiteSpace(year))
                     {
-                        var yearSplit = year.Split("-");
+                        string[] yearSplit = year.Split("-");
 
                         if (yearSplit[0].Length == 4 && uint.TryParse(yearSplit[0], out uint yearParsed))
                         {

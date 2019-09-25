@@ -337,7 +337,7 @@ namespace loc0Loadr
                 return new byte[0];
             }
 
-            return EncryptionHandler.DecryptTrack(encryptedBytes, trackInfo.TrackTags.Id);
+            return await EncryptionHandler.DecryptTrack(encryptedBytes, trackInfo.TrackTags.Id);
         }
 
         private async Task<byte[]> GetAndSaveAlbumArt(string pictureId, string saveDirectory)

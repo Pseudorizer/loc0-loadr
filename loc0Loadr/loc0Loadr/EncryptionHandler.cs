@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -7,7 +9,6 @@ using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Paddings;
 using Org.BouncyCastle.Crypto.Parameters;
-using TagLib.Riff;
 
 namespace loc0Loadr
 {
@@ -22,11 +23,52 @@ namespace loc0Loadr
             return $"https://e-cdns-proxy-{cdn}.dzcdn.net/mobile/1/{encryptedFilename}";
         }
 
-        public static byte[] DecryptTrack(byte[] downloadBytes, string sngId)
+        public static async Task<byte[]> DecryptTrack(byte[] downloadBytes, string sngId)
         {
             string blowfishKey = GetBlowfishKey(sngId);
             byte[] keyBytes = Encoding.UTF8.GetBytes(blowfishKey);
             long streamLength = downloadBytes.Length;
+            
+            Stopwatch sw = Stopwatch.StartNew();
+            
+            IEnumerable<Worker> y = GetWorkers(streamLength);
+
+            var decryptedChunks = new List<DecryptedBytes>();
+            var decryptTasks = new List<Task>();
+
+            foreach (Worker worker in y)
+            {
+                decryptTasks.Add(
+                    Task.Run(() =>
+                    {
+                        var workerBytes = new byte[worker.ByteRange];
+                        Buffer.BlockCopy(downloadBytes, (int) worker.StartingChunk, workerBytes, 0, (int) worker.ByteRange);
+
+                        var h = new DecryptedBytes
+                        {
+                            OrderId = worker.OrderId,
+                            StartingOffset = worker.StartingChunk,
+                            Bytes = DecryptChunks(workerBytes, worker.ByteRange, keyBytes)
+                        };
+
+                        decryptedChunks.Add(h);
+                    }));
+            }
+
+            await Task.WhenAll(decryptTasks);
+            
+            var final = new byte[streamLength];
+            
+            foreach (DecryptedBytes decryptedBytes in decryptedChunks.OrderBy(x => x.OrderId))
+            {
+                Buffer.BlockCopy(decryptedBytes.Bytes, 0, final, (int) decryptedBytes.StartingOffset, decryptedBytes.Bytes.Length);
+            }
+
+            return final;
+        }
+
+        private static IEnumerable<Worker> GetWorkers(long streamLength)
+        {
             const int chunk = 6144;
             const int workers = 4;
 
@@ -34,8 +76,8 @@ namespace loc0Loadr
             var f = e / workers;
             var r = f * workers * chunk;
             var q = streamLength - r;
-            
-            List<Worker> y = new List<Worker>();
+
+            var y = new List<Worker>();
 
             for (var i = 0; i < workers; i++)
             {
@@ -45,15 +87,20 @@ namespace loc0Loadr
                     EndChunk = (i + 1) * f * chunk,
                     OrderId = i
                 };
-  
+
                 if (i + 1 == workers)
                 {
                     worker.EndChunk += q;
                 }
-                
+
                 y.Add(worker);
             }
 
+            return y;
+        }
+
+        private static byte[] DecryptChunks(byte[] downloadBytes, long streamLength, byte[] keyBytes)
+        {
             var decryptedBytes = new byte[streamLength];
             var chunkSize = 2048;
             var progress = 0;
@@ -66,6 +113,7 @@ namespace loc0Loadr
                 }
 
                 var encryptedChunk = new byte[chunkSize];
+                
                 Buffer.BlockCopy(downloadBytes, progress, encryptedChunk, 0, chunkSize);
 
                 // this will only decrypt every third chunk and if it's not at the end
@@ -74,7 +122,7 @@ namespace loc0Loadr
                     var blowfishEngine = new BlowfishEngine();
                     var cipher = new PaddedBufferedBlockCipher(new CbcBlockCipher(blowfishEngine), new ZeroBytePadding());
                     var keyParameter = new KeyParameter(keyBytes);
-                    var parameters = new ParametersWithIV(keyParameter, new byte [] {0, 1, 2, 3, 4, 5, 6, 7});
+                    var parameters = new ParametersWithIV(keyParameter, new byte[] {0, 1, 2, 3, 4, 5, 6, 7});
                     cipher.Init(false, parameters);
 
                     var output = new byte[cipher.GetOutputSize(encryptedChunk.Length)];
@@ -82,7 +130,7 @@ namespace loc0Loadr
                     cipher.DoFinal(output, len);
                     Buffer.BlockCopy(output, 0, encryptedChunk, 0, output.Length);
                 }
-                
+
                 Buffer.BlockCopy(encryptedChunk, 0, decryptedBytes, progress, encryptedChunk.Length);
 
                 progress += chunkSize;
@@ -220,6 +268,14 @@ namespace loc0Loadr
     {
         public long StartingChunk { get; set; }
         public long EndChunk { get; set; }
+        public long ByteRange => EndChunk - StartingChunk;
         public int OrderId { get; set; }
+    }
+
+    internal class DecryptedBytes
+    {
+        public byte[] Bytes { get; set; }
+        public int OrderId { get; set; }
+        public long StartingOffset { get; set; }
     }
 }
