@@ -5,6 +5,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using loc0Loadr.Models;
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Paddings;
@@ -29,29 +30,28 @@ namespace loc0Loadr
             byte[] keyBytes = Encoding.UTF8.GetBytes(blowfishKey);
             long streamLength = downloadBytes.Length;
             
-            Stopwatch sw = Stopwatch.StartNew();
-            
-            IEnumerable<Worker> y = GetWorkers(streamLength);
+            IEnumerable<Worker> workers = GetWorkers(streamLength);
 
             var decryptedChunks = new List<DecryptedBytes>();
             var decryptTasks = new List<Task>();
 
-            foreach (Worker worker in y)
+            // ReSharper disable once LoopCanBeConvertedToQuery
+            foreach (Worker worker in workers)
             {
                 decryptTasks.Add(
                     Task.Run(() =>
                     {
                         var workerBytes = new byte[worker.ByteRange];
-                        Buffer.BlockCopy(downloadBytes, (int) worker.StartingChunk, workerBytes, 0, (int) worker.ByteRange);
+                        Buffer.BlockCopy(downloadBytes, (int) worker.StartingOffset, workerBytes, 0, (int) worker.ByteRange);
 
-                        var h = new DecryptedBytes
+                        var decryptedBytes = new DecryptedBytes
                         {
                             OrderId = worker.OrderId,
-                            StartingOffset = worker.StartingChunk,
+                            StartingOffset = worker.StartingOffset,
                             Bytes = DecryptChunks(workerBytes, worker.ByteRange, keyBytes)
                         };
 
-                        decryptedChunks.Add(h);
+                        decryptedChunks.Add(decryptedBytes);
                     }));
             }
 
@@ -70,33 +70,33 @@ namespace loc0Loadr
         private static IEnumerable<Worker> GetWorkers(long streamLength)
         { // Thanks to Chimera for math!
             const int chunk = 6144;
-            const int workers = 4;
+            const int workersCount = 4;
 
-            var e = streamLength / chunk;
-            var f = e / workers;
-            var r = f * workers * chunk;
-            var q = streamLength - r;
+            long e = streamLength / chunk;
+            long f = e / workersCount;
+            long r = f * workersCount * chunk;
+            long remainingBytes = streamLength - r;
 
-            var y = new List<Worker>();
+            var workers = new List<Worker>();
 
-            for (var i = 0; i < workers; i++)
+            for (var i = 0; i < workersCount; i++)
             {
                 var worker = new Worker()
                 {
-                    StartingChunk = i * f * chunk,
-                    EndChunk = (i + 1) * f * chunk,
+                    StartingOffset = i * f * chunk,
+                    EndOffset = (i + 1) * f * chunk,
                     OrderId = i
                 };
 
-                if (i + 1 == workers)
+                if (i + 1 == workersCount)
                 {
-                    worker.EndChunk += q;
+                    worker.EndOffset += remainingBytes;
                 }
 
-                y.Add(worker);
+                workers.Add(worker);
             }
 
-            return y;
+            return workers;
         }
 
         private static byte[] DecryptChunks(byte[] downloadBytes, long streamLength, byte[] keyBytes)
@@ -262,20 +262,5 @@ namespace loc0Loadr
 
             return blowfishKey;
         }
-    }
-
-    internal class Worker
-    {
-        public long StartingChunk { get; set; }
-        public long EndChunk { get; set; }
-        public long ByteRange => EndChunk - StartingChunk;
-        public int OrderId { get; set; }
-    }
-
-    internal class DecryptedBytes
-    {
-        public byte[] Bytes { get; set; }
-        public int OrderId { get; set; }
-        public long StartingOffset { get; set; }
     }
 }

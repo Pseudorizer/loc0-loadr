@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using ByteSizeLib;
 using loc0Loadr.Enums;
 using loc0Loadr.Models;
 using Newtonsoft.Json;
@@ -216,7 +219,7 @@ namespace loc0Loadr
             return null;
         }
 
-        public async Task<byte[]> DownloadTrack(string url, int retries = 3)
+        public async Task<byte[]> DownloadTrack(string url, IProgress<string> progress, int retries = 3)
         {
             var attempts = 1;
 
@@ -224,11 +227,11 @@ namespace loc0Loadr
             {
                 try
                 {
-                    using (HttpResponseMessage downloadResponse = await _httpClient.GetAsync(url))
+                    using (HttpResponseMessage downloadResponse = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
                     {
-                        if (downloadResponse.IsSuccessStatusCode)
+                        if (downloadResponse.IsSuccessStatusCode && downloadResponse.Content.Headers.ContentLength.HasValue)
                         {
-                            return await downloadResponse.Content.ReadAsByteArrayAsync();
+                            return await DownloadWithProgress(downloadResponse, progress);
                         }
                     }
                 }
@@ -243,6 +246,59 @@ namespace loc0Loadr
             }
 
             return null;
+        }
+
+        private async Task<byte[]> DownloadWithProgress(HttpResponseMessage response, IProgress<string> progress)
+        {
+            using (Stream fileStream = await response.Content.ReadAsStreamAsync())
+            {
+                long total = response.Content.Headers.ContentLength.Value;
+                double totalMegabytes = ByteSize.FromBytes(total).MegaBytes;
+                totalMegabytes = Math.Round(totalMegabytes, 2);
+                var totalRead = 0L;
+                var buffer = new byte[4096];
+                var isMoreToRead = true;
+
+                do
+                {
+                    int read = await fileStream.ReadAsync(buffer, 0, buffer.Length);
+
+                    if (read == 0)
+                    {
+                        isMoreToRead = false;
+                    }
+                    else
+                    {
+                        var data = new byte[read];
+                        buffer.ToList().CopyTo(0, data, 0, read);
+
+                        totalRead += read;
+
+                        double percent = totalRead * 1d / (total * 1d) * 100;
+                        percent = Math.Round(percent, 2);
+                        string percentPadded = Pad($"{percent}%", 6);
+
+                        double totalReadMegabytes = ByteSize.FromBytes(totalRead).MegaBytes;
+                        totalReadMegabytes = Math.Round(totalReadMegabytes, 2);
+                        string totalReadMegabytesPadded = Pad(totalReadMegabytes.ToString(CultureInfo.InvariantCulture), 5);
+
+                        progress.Report($"\r{percentPadded} {totalReadMegabytesPadded}MB/{totalMegabytes}MB");
+                    }
+                                    
+                } while (isMoreToRead);
+
+                using (var memoryStream = new MemoryStream())
+                {
+                    fileStream.CopyTo(memoryStream);
+                    return memoryStream.ToArray();
+                }
+
+                string Pad(string number, int max)
+                {
+                    int padding = max - number.Length;
+                    return number + new string(' ', padding);
+                }
+            }
         }
 
         public async Task<byte[]> GetAlbumArt(string albumPictureId, int retries = 3)

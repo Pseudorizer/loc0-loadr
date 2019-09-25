@@ -80,8 +80,8 @@ namespace loc0Loadr
 
             Console.WriteLine($"\nDownloading {albumInfo.AlbumTags.Title} ({albumInfo.AlbumTags.Type})");
             
-            List<bool> results = new List<bool>();
-            List<Task> tasks = new List<Task>();
+            var results = new List<bool>();
+            var tasks = new List<Task>();
 
             var maxConcurrentDownloads = Configuration.GetValue<int>("maxConcurrentDownloads");
 
@@ -90,12 +90,12 @@ namespace loc0Loadr
                 maxConcurrentDownloads = 3;
             }
             
-            var throttler = new SemaphoreSlim(1);
+            var throttler = new SemaphoreSlim(maxConcurrentDownloads);
                 
             foreach (JObject albumInfoSong in albumInfo.Songs.Children<JObject>())
             {
                 await throttler.WaitAsync();
-                
+
                 tasks.Add(
                     Task.Run(async () =>
                     {
@@ -329,7 +329,14 @@ namespace loc0Loadr
             Console.WriteLine(
                 $"\nDownloading {trackInfo.TrackTags.AlbumArtist} - {trackInfo.TrackTags.Title} | Quality: {Helpers.AudioQualityToOutputString[_audioQuality]}");
 
-            byte[] encryptedBytes = await _deezerHttp.DownloadTrack(downloadUrl);
+            var p = new Progress<string>();
+
+            p.ProgressChanged += (sender, value) =>
+            {
+                Console.Write(value); // need to write some sort of class for handling the output
+            };
+            
+            byte[] encryptedBytes = await _deezerHttp.DownloadTrack(downloadUrl, p);
 
             if (encryptedBytes == null || encryptedBytes.Length == 0)
             {
