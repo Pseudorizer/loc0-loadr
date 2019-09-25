@@ -329,14 +329,14 @@ namespace loc0Loadr
             Console.WriteLine(
                 $"\nDownloading {trackInfo.TrackTags.AlbumArtist} - {trackInfo.TrackTags.Title} | Quality: {Helpers.AudioQualityToOutputString[_audioQuality]}");
 
-            var p = new Progress<string>();
+            var progress = new Progress<string>();
 
-            p.ProgressChanged += (sender, value) =>
+            progress.ProgressChanged += (sender, value) =>
             {
                 Console.Write(value); // need to write some sort of class for handling the output
             };
             
-            byte[] encryptedBytes = await _deezerHttp.DownloadTrack(downloadUrl, p);
+            byte[] encryptedBytes = await _deezerHttp.DownloadTrack(downloadUrl, progress);
 
             if (encryptedBytes == null || encryptedBytes.Length == 0)
             {

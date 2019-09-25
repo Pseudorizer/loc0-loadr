@@ -250,11 +250,13 @@ namespace loc0Loadr
 
         private async Task<byte[]> DownloadWithProgress(HttpResponseMessage response, IProgress<string> progress)
         {
+            // thanks stackoverflow
             using (Stream fileStream = await response.Content.ReadAsStreamAsync())
             {
                 long total = response.Content.Headers.ContentLength.Value;
                 double totalMegabytes = ByteSize.FromBytes(total).MegaBytes;
                 totalMegabytes = Math.Round(totalMegabytes, 2);
+                var finalBytes = new byte[total];
                 var totalRead = 0L;
                 var buffer = new byte[4096];
                 var isMoreToRead = true;
@@ -265,6 +267,7 @@ namespace loc0Loadr
 
                     if (read == 0)
                     {
+                        progress.Report("\n");
                         isMoreToRead = false;
                     }
                     else
@@ -272,6 +275,8 @@ namespace loc0Loadr
                         var data = new byte[read];
                         buffer.ToList().CopyTo(0, data, 0, read);
 
+                        data.CopyTo(finalBytes, totalRead);
+                        
                         totalRead += read;
 
                         double percent = totalRead * 1d / (total * 1d) * 100;
@@ -287,11 +292,7 @@ namespace loc0Loadr
                                     
                 } while (isMoreToRead);
 
-                using (var memoryStream = new MemoryStream())
-                {
-                    fileStream.CopyTo(memoryStream);
-                    return memoryStream.ToArray();
-                }
+                return finalBytes;
 
                 string Pad(string number, int max)
                 {
