@@ -38,6 +38,13 @@ namespace loc0Loadr
             while (true)
             {
                 string choice = Helpers.TakeInput(1, 3, "Download via URL", "Search for media", "Exit");
+
+                if (choice == "3")
+                {
+                    _deezerHttp.Dispose();
+                    Environment.Exit(0);
+                }
+                
                 string qualityChoice = Helpers.TakeInput(1, 4, "MP3 128", "MP3 256", "MP3 320", "FLAC");
 
                 AudioQuality quality = Helpers.InputToAudioQuality[qualityChoice];
@@ -50,11 +57,6 @@ namespace loc0Loadr
                 else if (choice == "2")
                 {
                     await DownloadFromSearch(quality);
-                }
-                else if (choice == "3")
-                {
-                    _deezerHttp.Dispose();
-                    Environment.Exit(0);
                 }
             }
         }
@@ -80,6 +82,7 @@ namespace loc0Loadr
             {
                 case "track":
                     await deezerDownloader.ProcessTrack(id);
+                    Console.Write("\n");
                     break;
                 case "artist":
                     await deezerDownloader.ProcessArtist(id);

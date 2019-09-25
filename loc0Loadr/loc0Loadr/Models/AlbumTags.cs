@@ -20,6 +20,9 @@ namespace loc0Loadr.Models
 
         [JsonProperty("NUMBER_TRACK")]
         public string NumberOfTracks { get; set; }
+        
+        [JsonProperty("ARTISTS")]
+        public Artists[] Artists { get; set; }
 
         [JsonProperty("PHYSICAL_RELEASE_DATE")]
         public string ReleaseDate { get; set; }

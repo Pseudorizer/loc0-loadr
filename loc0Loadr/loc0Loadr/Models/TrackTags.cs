@@ -9,10 +9,7 @@ namespace loc0Loadr.Models
         
         [JsonProperty("SNG_TITLE")]
         public string Title { get; set; }
-        
-        [JsonProperty("ART_NAME")]
-        public string AlbumArtist { get; set; }
-        
+
         [JsonProperty("ALB_ID")]
         public string AlbumId { get; set; }
         
@@ -23,7 +20,7 @@ namespace loc0Loadr.Models
         public string Md5Origin { get; set; }
 
         [JsonProperty("DURATION")]
-        public string Duration { get; set; }
+        public string Length { get; set; }
 
         [JsonProperty("FILESIZE_MP3_128")]
         public long Mp3128 { get; set; }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -35,6 +36,136 @@ namespace loc0Loadr
                 ? WriteFlacMetadata()
                 : WriteMp3Metadata();
         }
+        
+        // just in case i find a way to get album info working in taglib
+        /*private bool WriteFlacMetadata()
+        {
+            using (TagLib.File file = TagLib.File.Create(_filepath, "taglib/flac", ReadStyle.Average))
+            {
+                var tags = (TagLib.Ogg.XiphComment) file.GetTag(TagTypes.Xiph);
+
+                if (_trackInfo.TrackTags != null)
+                {
+                    tags.Title = _trackInfo.TrackTags.Title;
+                    tags.Performers = _trackInfo.TrackTags.Artists.Select(x => x.Name).ToArray();
+                    tags.Composers = _trackInfo.TrackTags.Contributors.Composers;
+                    tags.SetField("LENGTH", _trackInfo.TrackTags.Length);
+                    tags.SetField("ISRC", _trackInfo.TrackTags.Isrc);
+                    tags.SetField("EXPLICIT", _trackInfo.TrackTags.ExplicitLyrics ?? "0");
+                    tags.SetField("REPLAYGAIN_TRACK_GAIN", _trackInfo.TrackTags.Gain);
+                    tags.SetField("PRODUCER", _trackInfo.TrackTags.Contributors.Producers);
+                    tags.SetField("ENGINEER", _trackInfo.TrackTags.Contributors.Engineers);
+                    tags.SetField("MIXER", _trackInfo.TrackTags.Contributors.Mixers);
+                    tags.SetField("WRITER", _trackInfo.TrackTags.Contributors.Writers);
+                    tags.SetField("AUTHOR", _trackInfo.TrackTags.Contributors.Authors);
+                    tags.SetField("PUBLISHER", _trackInfo.TrackTags.Contributors.Publishers);
+                    
+
+                    if (_trackInfo.TrackTags.TrackNumber != null &&
+                        uint.TryParse(_trackInfo.TrackTags.TrackNumber, out uint trackNumber))
+                    {
+                        tags.Track = trackNumber;
+                    }
+                    
+                    if (_trackInfo.TrackTags.DiscNumber != null &&
+                        uint.TryParse(_trackInfo.TrackTags.DiscNumber, out uint discNumber))
+                    {
+                        tags.Disc = discNumber;
+                    }
+                    
+                    if (_trackInfo.TrackTags.Bpm != null &&
+                        uint.TryParse(_trackInfo.TrackTags.Bpm, out uint bpm))
+                    {
+                        tags.BeatsPerMinute = bpm;
+                    }
+                }
+
+                if (_albumInfo.AlbumTags != null)
+                {
+                    tags.Album = _albumInfo.AlbumTags.Title;
+                    tags.AlbumArtists = _albumInfo.AlbumTags.Artists.Select(x => x.Name).ToArray();
+                    tags.Genres = _albumInfo.AlbumTags.Genres.GenreData.Select(x => x.Name).ToArray();
+                
+                    string year = _albumInfo.AlbumTags.ReleaseDate;
+
+                    if (!string.IsNullOrWhiteSpace(year))
+                    {
+                        string[] yearSplit = year.Split("-");
+
+                        if (yearSplit[0].Length == 4 && uint.TryParse(yearSplit[0], out uint yearParsed))
+                        {
+                            tags.Year = yearParsed;
+                        }
+                    }
+
+                    tags.Copyright = _albumInfo.AlbumTags.Copyright;
+                    tags.SetField("MEDIA", "Digital Media");
+                    tags.SetField("ORIGINALDATE", _albumInfo.AlbumTags.ReleaseDate);
+                    tags.SetField("UPC", _albumInfo.AlbumTags.Upc);
+                    tags.SetField("LABEL", _albumInfo.AlbumTags.Label);
+
+                    if (_albumInfo.AlbumTags.NumberOfTracks != null &&
+                        uint.TryParse(_albumInfo.AlbumTags.NumberOfTracks, out uint numberOfTracks))
+                    {
+                        tags.TrackCount = numberOfTracks;
+                    }
+
+                    if (_albumInfo.AlbumTags.NumberOfDiscs != null &&
+                        uint.TryParse(_albumInfo.AlbumTags.NumberOfDiscs, out uint numberOfDiscs))
+                    {
+                        tags.DiscCount = numberOfDiscs;
+                    }
+                }
+                
+                if (_trackInfo.Lyrics != null)
+                {
+                    tags.Lyrics = _trackInfo.Lyrics.UnSyncedLyrics;
+                    WriteLyricsFile();
+                }
+
+                try
+                {
+                    file.Save();
+                }
+                catch (IOException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    return false;
+                }
+            }
+
+            // this takes 800-900ms... why can't you just work taglib
+            using (var file = new FlacFile(_filepath))
+            {
+                if (_coverBytes.Length > 0)
+                {
+                    var coverArt = new FlacLibSharp.Picture()
+                    {
+                        Description = "Cover",
+                        ColorDepth = 8,
+                        Data = _coverBytes,
+                        Height = 1400,
+                        Width = 1400,
+                        MIMEType = MediaTypeNames.Image.Jpeg,
+                        PictureType = FlacLibSharp.PictureType.CoverFront
+                    };
+                    
+                    file.Metadata.Add(coverArt);
+                }
+
+                try
+                {
+                    file.Save();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    return false;
+                }
+            }
+
+            return true;
+        }*/
 
         private bool WriteFlacMetadata()
         {
@@ -84,6 +215,7 @@ namespace loc0Loadr
                     comments["COPYRIGHT"] = new VorbisCommentValues(_albumInfo.AlbumTags.Copyright ?? "");
                     comments["UPC"] = new VorbisCommentValues(_albumInfo.AlbumTags.Upc ?? "");
                     comments["LABEL"] = new VorbisCommentValues(_albumInfo.AlbumTags.Label ?? "");
+                    comments["ALBUMARTIST"] = new VorbisCommentValues(_albumInfo.AlbumTags.Artists.Select(x => x.Name));
                 }
 
                 if (_trackInfo?.TrackTags != null)
@@ -93,10 +225,9 @@ namespace loc0Loadr
                     comments["DISCNUMBER"] = new VorbisCommentValues(_trackInfo.TrackTags.DiscNumber ?? "");
                     comments["TRACKNUMBER"] = new VorbisCommentValues(_trackInfo.TrackTags.TrackNumber ?? "");
                     comments["BPM"] = new VorbisCommentValues(_trackInfo.TrackTags.Bpm ?? "");
-                    comments["LENGTH"] = new VorbisCommentValues(_trackInfo.TrackTags.Duration ?? "");
+                    comments["LENGTH"] = new VorbisCommentValues(_trackInfo.TrackTags.Length ?? "");
                     comments["ISRC"] = new VorbisCommentValues(_trackInfo.TrackTags.Isrc ?? "");
                     comments["EXPLICIT"] = new VorbisCommentValues(_trackInfo.TrackTags.ExplicitLyrics ?? "0");
-                    comments["ALBUMARTIST"] = new VorbisCommentValues(_trackInfo.TrackTags.AlbumArtist ?? "");
                     comments["REPLAYGAIN_TRACK_GAIN"] = new VorbisCommentValues(_trackInfo.TrackTags.Gain ?? ""); 
                     
                     Helpers.AddTagIfNotNull(comments, "COMPOSER", _trackInfo.TrackTags.Contributors.Composers);
@@ -158,7 +289,7 @@ namespace loc0Loadr
                 {
                     tags.Title = _trackInfo.TrackTags.Title;
                     tags.Performers = _trackInfo.TrackTags.Artists.Select(x => x.Name).ToArray();
-                    tags.AlbumArtists = new[] {_trackInfo.TrackTags.AlbumArtist}; // i don't like just using ART_NAME as the only album artist
+                    tags.AlbumArtists = _albumInfo.AlbumTags.Artists.Select(x => x.Name).ToArray(); // i don't like just using ART_NAME as the only album artist
                     tags.Composers = _trackInfo.TrackTags.Contributors.Composers;
                     
                     if (_trackInfo.TrackTags.TrackNumber != null)
@@ -186,7 +317,7 @@ namespace loc0Loadr
                     
                     tags.AddFrame(Helpers.BuildTextInformationFrame("TSRC", _trackInfo.TrackTags.Isrc));
                     tags.AddFrame(Helpers.BuildTextInformationFrame("TPUB", _trackInfo.TrackTags.Contributors.Publishers));
-                    tags.AddFrame(Helpers.BuildTextInformationFrame("TLEN", _trackInfo.TrackTags.Duration));
+                    tags.AddFrame(Helpers.BuildTextInformationFrame("TLEN", _trackInfo.TrackTags.Length));
                     tags.AddFrame(Helpers.BuildUserTextInformationFrame("EXPLICIT", _trackInfo.TrackTags.ExplicitLyrics));
                     tags.AddFrame(Helpers.BuildUserTextInformationFrame("REPLAYGAIN_TRACK_GAIN", _trackInfo.TrackTags.Gain));
                     tags.AddFrame(Helpers.BuildUserTextInformationFrame("WRITERS", _trackInfo.TrackTags.Contributors.Writers));

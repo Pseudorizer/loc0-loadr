@@ -56,6 +56,12 @@ namespace loc0Loadr
 
                     JObject apiRequestJson = JObject.Parse(apiRequestBody);
 
+                    if (apiRequestJson == null)
+                    {
+                        Helpers.RedMessage("Failed to parse API token request JSON");
+                        return false;
+                    }
+
                     apiRequestJson.DisplayDeezerErrors("API Token");
 
                     if (apiRequestJson["results"]?["USER"]?["USER_ID"].Value<int>() == 0)
@@ -253,9 +259,11 @@ namespace loc0Loadr
             // thanks stackoverflow
             using (Stream fileStream = await response.Content.ReadAsStreamAsync())
             {
+                // ReSharper disable once PossibleInvalidOperationException
                 long total = response.Content.Headers.ContentLength.Value;
                 double totalMegabytes = ByteSize.FromBytes(total).MegaBytes;
                 totalMegabytes = Math.Round(totalMegabytes, 2);
+                
                 var finalBytes = new byte[total];
                 var totalRead = 0L;
                 var buffer = new byte[4096];
@@ -269,14 +277,13 @@ namespace loc0Loadr
 
                     if (read == 0)
                     {
-                        progressBar.Refresh(100, $"{title} | Download Complete");
+                        progressBar.Next($"{title} | Download Complete");
                         isMoreToRead = false;
                     }
                     else
                     {
                         var data = new byte[read];
                         buffer.ToList().CopyTo(0, data, 0, read);
-
                         data.CopyTo(finalBytes, totalRead);
                         
                         totalRead += read;
@@ -292,12 +299,6 @@ namespace loc0Loadr
                 } while (isMoreToRead);
 
                 return finalBytes;
-
-                string Pad(string number, int max)
-                {
-                    int padding = max - number.Length;
-                    return number + new string(' ', padding);
-                }
             }
         }
 
