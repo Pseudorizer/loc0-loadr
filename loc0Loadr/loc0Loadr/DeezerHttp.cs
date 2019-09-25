@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -8,6 +7,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using ByteSizeLib;
+using Konsole;
 using loc0Loadr.Enums;
 using loc0Loadr.Models;
 using Newtonsoft.Json;
@@ -219,7 +219,7 @@ namespace loc0Loadr
             return null;
         }
 
-        public async Task<byte[]> DownloadTrack(string url, IProgress<string> progress, int retries = 3)
+        public async Task<byte[]> DownloadTrack(string url, string title, int retries = 3)
         {
             var attempts = 1;
 
@@ -231,7 +231,7 @@ namespace loc0Loadr
                     {
                         if (downloadResponse.IsSuccessStatusCode && downloadResponse.Content.Headers.ContentLength.HasValue)
                         {
-                            return await DownloadWithProgress(downloadResponse, progress);
+                            return await DownloadWithProgress(downloadResponse, title);
                         }
                     }
                 }
@@ -248,7 +248,7 @@ namespace loc0Loadr
             return null;
         }
 
-        private async Task<byte[]> DownloadWithProgress(HttpResponseMessage response, IProgress<string> progress)
+        private async Task<byte[]> DownloadWithProgress(HttpResponseMessage response, string title)
         {
             // thanks stackoverflow
             using (Stream fileStream = await response.Content.ReadAsStreamAsync())
@@ -260,6 +260,8 @@ namespace loc0Loadr
                 var totalRead = 0L;
                 var buffer = new byte[4096];
                 var isMoreToRead = true;
+                
+                var p = new ProgressBar(PbStyle.SingleLine, 100, 100);
 
                 do
                 {
@@ -267,7 +269,7 @@ namespace loc0Loadr
 
                     if (read == 0)
                     {
-                        progress.Report("\n");
+                        p.Refresh(100, $"{title} | Download Complete");
                         isMoreToRead = false;
                     }
                     else
@@ -280,14 +282,11 @@ namespace loc0Loadr
                         totalRead += read;
 
                         double percent = totalRead * 1d / (total * 1d) * 100;
-                        percent = Math.Round(percent, 2);
-                        string percentPadded = Pad($"{percent}%", 6);
 
                         double totalReadMegabytes = ByteSize.FromBytes(totalRead).MegaBytes;
                         totalReadMegabytes = Math.Round(totalReadMegabytes, 2);
-                        string totalReadMegabytesPadded = Pad(totalReadMegabytes.ToString(CultureInfo.InvariantCulture), 5);
-
-                        progress.Report($"\r{percentPadded} {totalReadMegabytesPadded}MB/{totalMegabytes}MB");
+                        
+                        p.Refresh(Convert.ToInt32(percent), $"{title} | {totalReadMegabytes}MB/{totalMegabytes}MB");
                     }
                                     
                 } while (isMoreToRead);

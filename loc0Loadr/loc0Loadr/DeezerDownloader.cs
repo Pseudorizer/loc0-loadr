@@ -54,7 +54,7 @@ namespace loc0Loadr
                 artistResults.Add(albumDownloadResults);
             }
 
-            int artistDownloadsFailed = artistResults.Count(x => x == false);
+            int artistDownloadsFailed = artistResults.Count(x => x);
 
             if (artistDownloadsFailed != artistResults.Count)
             {
@@ -62,7 +62,7 @@ namespace loc0Loadr
             }
             else
             {
-                Helpers.RedMessage($"{artistDownloadsFailed}/{artistResults.Count} Failed");
+                Helpers.RedMessage($"{artistDownloadsFailed}/{artistResults.Count} Downloaded");
             }
 
             return true;
@@ -123,11 +123,11 @@ namespace loc0Loadr
 
             if (downloadsSucceed == results.Count)
             {
-                Helpers.GreenMessage("Album downloaded successfully");
+                Helpers.GreenMessage("\nAlbum downloaded successfully");
             }
             else
             {
-                Helpers.RedMessage($"{downloadsSucceed}/{results.Count} Downloaded");
+                Helpers.RedMessage($"\n{downloadsSucceed}/{results.Count} Downloaded");
             }
 
             return downloadsSucceed == results.Count;
@@ -206,7 +206,7 @@ namespace loc0Loadr
                 return true;
             }
 
-            byte[] decryptedBytes = await GetDecryptedBytes(trackInfo);
+            byte[] decryptedBytes = await GetDecryptedBytes(trackInfo, albumInfo.AlbumTags.Artists[0].Name);
 
             if (!Helpers.WriteTrackBytes(decryptedBytes, tempTrackPath))
             {
@@ -223,8 +223,6 @@ namespace loc0Loadr
             }
             
             File.Move(tempTrackPath, saveLocation);
-
-            Helpers.GreenMessage($"{trackInfo.TrackTags.AlbumArtist} - {trackInfo.TrackTags.Title} Download Complete");
 
             return true;
         }
@@ -297,7 +295,7 @@ namespace loc0Loadr
 
         private string BuildSaveLocation(TrackInfo trackInfo, AlbumInfo albumInfo)
         {
-            string artist = trackInfo.TrackTags.AlbumArtist.SanitseString();
+            string artist = albumInfo.AlbumTags.Artists[0].Name.SanitseString();
             string type = albumInfo.AlbumTags.Type.SanitseString();
             string albumTitle = albumInfo.AlbumTags.Title.SanitseString();
             string trackTitle = trackInfo.TrackTags.Title.SanitseString();
@@ -322,21 +320,13 @@ namespace loc0Loadr
             return savePath;
         }
 
-        private async Task<byte[]> GetDecryptedBytes(TrackInfo trackInfo)
+        private async Task<byte[]> GetDecryptedBytes(TrackInfo trackInfo, string albumArtist)
         {
             string downloadUrl = EncryptionHandler.GetDownloadUrl(trackInfo, (int) _audioQuality);
 
-            Console.WriteLine(
-                $"\nDownloading {trackInfo.TrackTags.AlbumArtist} - {trackInfo.TrackTags.Title} | Quality: {Helpers.AudioQualityToOutputString[_audioQuality]}");
+            string title = $"\nDownloading {albumArtist} - {trackInfo.TrackTags.Title} | Quality: {Helpers.AudioQualityToOutputString[_audioQuality]}";
 
-            var progress = new Progress<string>();
-
-            progress.ProgressChanged += (sender, value) =>
-            {
-                Console.Write(value); // need to write some sort of class for handling the output
-            };
-            
-            byte[] encryptedBytes = await _deezerHttp.DownloadTrack(downloadUrl, progress);
+            byte[] encryptedBytes = await _deezerHttp.DownloadTrack(downloadUrl, title);
 
             if (encryptedBytes == null || encryptedBytes.Length == 0)
             {
