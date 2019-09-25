@@ -261,7 +261,7 @@ namespace loc0Loadr
                 var buffer = new byte[4096];
                 var isMoreToRead = true;
                 
-                var p = new ProgressBar(PbStyle.SingleLine, 100, 100);
+                var progressBar = new ProgressBar(PbStyle.SingleLine, 100, 100);
 
                 do
                 {
@@ -269,7 +269,7 @@ namespace loc0Loadr
 
                     if (read == 0)
                     {
-                        p.Refresh(100, $"{title} | Download Complete");
+                        progressBar.Refresh(100, $"{title} | Download Complete");
                         isMoreToRead = false;
                     }
                     else
@@ -286,7 +286,7 @@ namespace loc0Loadr
                         double totalReadMegabytes = ByteSize.FromBytes(totalRead).MegaBytes;
                         totalReadMegabytes = Math.Round(totalReadMegabytes, 2);
                         
-                        p.Refresh(Convert.ToInt32(percent), $"{title} | {totalReadMegabytes}MB/{totalMegabytes}MB");
+                        progressBar.Refresh(Convert.ToInt32(percent), $"{title} | {totalReadMegabytes}MB/{totalMegabytes}MB");
                     }
                                     
                 } while (isMoreToRead);

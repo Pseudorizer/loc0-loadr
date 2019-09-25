@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Konsole;
 using loc0Loadr.Enums;
 using Newtonsoft.Json.Linq;
 using File = System.IO.File;
@@ -91,21 +92,33 @@ namespace loc0Loadr
             }
             
             var throttler = new SemaphoreSlim(maxConcurrentDownloads);
-                
-            foreach (JObject albumInfoSong in albumInfo.Songs.Children<JObject>())
+
+            List<JObject> songs = albumInfo.Songs.Children<JObject>().ToList();
+            int songsCount = songs.Count;
+            
+            var progressBar = new ProgressBar(PbStyle.SingleLine, songsCount);
+            var complete = 0;
+            progressBar.Refresh(complete, $"Tracks processed {complete}/{songsCount}");
+
+            foreach (JObject albumInfoSong in songs)
             {
                 await throttler.WaitAsync();
 
+                JObject song = albumInfoSong;
                 tasks.Add(
                     Task.Run(async () =>
                     {
                         try
                         {
-                            var trackId = albumInfoSong["SNG_ID"].Value<string>();
+                            var trackId = song["SNG_ID"].Value<string>();
 
                             bool downloadResult = await ProcessTrack(trackId, albumInfo);
-                
+
+                            complete++;
+                            progressBar.Refresh(complete, $"Tracks processed {complete}/{songsCount}");
+                            
                             results.Add(downloadResult);
+                            
                         }
                         finally
                         {
