@@ -68,7 +68,7 @@ namespace loc0Loadr
         }
 
         private static IEnumerable<Worker> GetWorkers(long streamLength)
-        {
+        { // Thanks to Chimera for math!
             const int chunk = 6144;
             const int workers = 4;
 
