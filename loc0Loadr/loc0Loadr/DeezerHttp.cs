@@ -14,9 +14,6 @@ namespace loc0Loadr
 {
     internal class DeezerHttp : IDisposable
     {
-        // As per usual with your first attempt, this class sucks, do you have any idea what goes on in downloadtrack???
-        // Why is a class with http in the title handling the tag collection???
-        // Why is a class with http in the title handling the iteration of songs in album???
         private readonly HttpClient _httpClient;
         private string _apiToken;
         
