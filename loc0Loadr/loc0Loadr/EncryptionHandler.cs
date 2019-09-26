@@ -13,7 +13,7 @@ using Org.BouncyCastle.Crypto.Parameters;
 namespace loc0Loadr
 {
     internal static class EncryptionHandler
-    { // all credit for the actual logic goes to the devs at smloadr, this is just my implementation
+    { // all credit for most of the actual logic goes to the devs at smloadr/original maker of deezloader, this is just my implementation
 
         public static string GetDownloadUrl(TrackInfo trackInfo, int qualityId)
         {

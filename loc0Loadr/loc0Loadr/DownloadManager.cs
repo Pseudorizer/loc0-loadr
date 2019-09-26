@@ -2,6 +2,7 @@
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using loc0Loadr.Enums;
+using loc0Loadr.Models;
 
 namespace loc0Loadr
 {
@@ -110,8 +111,12 @@ namespace loc0Loadr
             switch (searchType)
             {
                 case "1":
-                    SearchResult trackId = await deezerSearcher.Search(searchParam, SearchType.Track);
-                    var e = await deezerDownloader.ProcessTrack(trackId.Id, trackId.Json);
+                    SearchResult trackResult = await deezerSearcher.Search(searchParam, SearchType.Track);
+
+                    if (trackResult != null)
+                    {
+                        var e = await deezerDownloader.ProcessTrack(trackResult.Id, trackResult.Json);
+                    }
                     break;
                 case "2":
                     SearchResult albumId = await deezerSearcher.Search(searchParam, SearchType.Album);

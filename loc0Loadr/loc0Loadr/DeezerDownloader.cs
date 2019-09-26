@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Konsole;
 using loc0Loadr.Enums;
+using loc0Loadr.Models;
 using Newtonsoft.Json.Linq;
 using File = System.IO.File;
 
@@ -189,7 +190,16 @@ namespace loc0Loadr
         public async Task<bool> ProcessTrack(string id, JObject trackJson)
         {
             JObject officialTrackInfo = await _deezerHttp.HitOfficialApi("track", id);
-            TrackInfo trackInfo = TrackInfo.BuildTrackInfo(trackJson, officialTrackInfo);
+            TrackInfo trackInfo = TrackInfo.BuildTrackInfo(trackJson, officialTrackInfo, true);
+
+            JObject lyricsJson = await _deezerHttp.HitUnofficialApi("song.getLyrics", new JObject
+            {
+                ["SNG_ID"] = trackInfo.TrackTags.Id
+            });
+            
+            lyricsJson.DisplayDeezerErrors("Alt ProcessTrack");
+
+            trackInfo.Lyrics = lyricsJson?["results"].ToObject<Lyrics>();
 
             return await ProcessTrack(id, trackInfo: trackInfo);
         }
@@ -218,8 +228,7 @@ namespace loc0Loadr
                 if (albumInfo == null)
                 {
                     trackProgress.Refresh(0, $"{id} | Failed to get album info");
-                    return
-                        false; // this shouldn't return, it shouldn't care, force album info to be null at some point and see what needs fixing
+                    return false; // this shouldn't return, it shouldn't care, force album info to be null at some point and see what needs fixing
                 }
             }
 
@@ -267,10 +276,10 @@ namespace loc0Loadr
             string tempLyricFilePath = Path.Combine(saveLocationDirectory,
                 Path.GetFileNameWithoutExtension(tempTrackPath) + ".lrc");
 
-            if (File.Exists(tempTrackPath))
+            if (File.Exists(tempLyricFilePath))
             {
                 string properLyricFilePath =
-                    Path.Combine(saveLocation, Path.GetFileNameWithoutExtension(saveLocation) + ".lrc");
+                    Path.Combine(saveLocationDirectory, Path.GetFileNameWithoutExtension(saveLocation) + ".lrc");
                 
                 File.Move(tempLyricFilePath, properLyricFilePath);
             }

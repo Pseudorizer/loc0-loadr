@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using loc0Loadr.Enums;
+using loc0Loadr.Models;
 using Newtonsoft.Json.Linq;
 
 namespace loc0Loadr
@@ -23,6 +24,36 @@ namespace loc0Loadr
                 return null;
             }
 
+            JObject searchResults = await GetResults(term);
+
+            if (searchResults == null)
+            {
+                return null;
+            }
+
+            var results = new List<SearchResult>();
+
+            switch (searchType)
+            {
+                case SearchType.Track:
+                    results = SearchResultParser.GetTrackResults(searchResults).ToList();
+                    break;
+                case SearchType.Album:
+                    results = SearchResultParser.GetAlbumResults(searchResults).ToList();
+                    break;
+            }
+
+            if (results.Count == 0)
+            {
+                Helpers.RedMessage("No results found");
+                return null;
+            }
+
+            return ChooseResult(results);
+        }
+
+        private async Task<JObject> GetResults(string term)
+        {
             var resultLimit = Configuration.GetValue<int>("maxSearchResults");
 
             if (resultLimit <= 0)
@@ -44,7 +75,7 @@ namespace loc0Loadr
                 ["artist_suggest"] = false,
                 ["top_tracks"] = false
             });
-            
+
             searchResults.DisplayDeezerErrors("Search");
 
             if (searchResults?["results"] == null)
@@ -52,26 +83,8 @@ namespace loc0Loadr
                 Helpers.RedMessage("Results object was null");
                 return null;
             }
-            
-            var results = new List<SearchResult>();
 
-            switch (searchType)
-            {
-                case SearchType.Track:
-                    results = SearchResultParser.GetTrackResults(searchResults).ToList();
-                    break;
-                case SearchType.Album:
-                    results = SearchResultParser.GetAlbumResults(searchResults).ToList();
-                    break;
-            }
-
-            if (results.Count == 0)
-            {
-                Helpers.RedMessage("No results found");
-                return null;
-            }
-
-            return ChooseResult(results);
+            return searchResults;
         }
 
         private static SearchResult ChooseResult(IReadOnlyCollection<SearchResult> results)
@@ -126,7 +139,7 @@ namespace loc0Loadr
                 }
                 else
                 {
-                    return pageResults[int.Parse(searchAction)];
+                    return pageResults[int.Parse(searchAction) - 1];
                 }
             }
         }
@@ -196,12 +209,5 @@ namespace loc0Loadr
                 };
             }
         }
-    }
-
-    internal class SearchResult
-    {
-        public string Id { get; set; }
-        public string OutputString { get; set; }
-        public JObject Json { get; set; }
     }
 }

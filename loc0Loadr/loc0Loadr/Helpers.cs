@@ -120,9 +120,9 @@ namespace loc0Loadr
 
         public static void DisplayDeezerErrors(this JToken json, string operation)
         {
-            if (json["error"] != null && json["error"].HasValues)
+            if (json?["error"] != null && json["error"].HasValues)
             {
-                foreach (JProperty child in json["error"].Children().Select(x => (JProperty) x))
+                foreach (JProperty child in json["error"].Children<JProperty>())
                 {
                     RedMessage($"[{operation}] {child.Name} - {child.Value.Value<string>()}");
                 }
