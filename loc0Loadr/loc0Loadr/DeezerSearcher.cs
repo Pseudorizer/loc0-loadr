@@ -41,7 +41,7 @@ namespace loc0Loadr
                 return string.Empty;
             }
             
-            var results = new List<string>();
+            var results = new List<SearchResult>();
 
             switch (searchType)
             {
@@ -61,13 +61,31 @@ namespace loc0Loadr
                         var artistName = track?["ART_NAME"].Value<string>();
                         var albumName = track?["ALB_TITLE"].Value<string>();
                         
-                        results.Add($"[{id}] {artistName} - {title} from {albumName}");
+                        results.Add(new SearchResult
+                        {
+                            Id = id,
+                            OutputString = $"[{id}] {artistName} - {title} from {albumName}"
+                        });
                     }
                     
                     break;
             }
 
+            int r = results.Count / 10;
+            int p = 1;
+
+            while (p < r)
+            {
+                
+            }
+
             return "";
         }
+    }
+
+    internal class SearchResult
+    {
+        public string Id { get; set; }
+        public string OutputString { get; set; }
     }
 }

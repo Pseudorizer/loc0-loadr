@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -8,8 +7,6 @@ using System.Text;
 using System.Threading.Tasks;
 using ByteSizeLib;
 using Konsole;
-using loc0Loadr.Enums;
-using loc0Loadr.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -21,15 +18,12 @@ namespace loc0Loadr
         // Why is a class with http in the title handling the tag collection???
         // Why is a class with http in the title handling the iteration of songs in album???
         private readonly HttpClient _httpClient;
-        private readonly DeezerFunctions _deezerFunctions;
         private string _apiToken;
         
         private const string ApiUrl = "https://www.deezer.com/ajax/gw-light.php";
 
         public DeezerHttp(string arl)
         {
-            _deezerFunctions = new DeezerFunctions();
-
             var handler = new HttpClientHandler
             {
                 CookieContainer = new CookieContainer()
