@@ -104,7 +104,12 @@ namespace loc0Loadr
                 var pageResults = results.Skip(skip).Take(10).ToList();
                 int pageResultsLength = pageResults.Count;
 
-                Console.WriteLine($"\nPage {page + 1} | {page * 10}-{(page + 1) * 10}/{results.Count}");
+                // not sure what to name these yet
+                int k = (page + 1) * 10;
+                int j = 10 - pageResultsLength;
+                k -= j;
+
+                Console.WriteLine($"\nPage {page + 1} | {page * 10}-{k}/{results.Count}");
 
                 var outputStrings = pageResults.Select(x => x.OutputString).ToList();
                 outputStrings.Add("See ten more");

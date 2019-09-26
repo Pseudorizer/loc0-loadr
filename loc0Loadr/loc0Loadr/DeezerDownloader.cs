@@ -196,8 +196,6 @@ namespace loc0Loadr
             {
                 ["SNG_ID"] = trackInfo.TrackTags.Id
             });
-            
-            lyricsJson.DisplayDeezerErrors("Alt ProcessTrack");
 
             trackInfo.Lyrics = lyricsJson?["results"].ToObject<Lyrics>();
 
@@ -249,7 +247,7 @@ namespace loc0Loadr
 
             if (File.Exists(saveLocation))
             {
-                trackProgress.Refresh(100, $"{trackProgressTitle} already exists");
+                trackProgress.Refresh(100, $"{trackProgressTitle} | file already exists");
                 return true;
             }
 

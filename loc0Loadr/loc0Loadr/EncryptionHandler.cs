@@ -139,7 +139,7 @@ namespace loc0Loadr
             string mediaVersion = trackInfo.TrackTags.MediaVersion;
             
             string itemsJoined = string.Join("¤", md5Origin, qualityId, sngId, mediaVersion);
-            string newHash = string.Empty;
+            string newHash;
 
             using (MD5 md5 = MD5.Create())
             {
