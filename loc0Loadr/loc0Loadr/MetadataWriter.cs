@@ -36,7 +36,7 @@ namespace loc0Loadr
                 : WriteMp3Metadata();
         }
         
-        // just in case i find a way to get album info working in taglib
+        // just in case i find a way to get the album cover working in taglib
         /*private bool WriteFlacMetadata()
         {
             using (TagLib.File file = TagLib.File.Create(_filepath, "taglib/flac", ReadStyle.Average))

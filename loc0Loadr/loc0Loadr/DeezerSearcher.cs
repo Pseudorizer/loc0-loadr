@@ -104,13 +104,6 @@ namespace loc0Loadr
                 var pageResults = results.Skip(skip).Take(10).ToList();
                 int pageResultsLength = pageResults.Count;
 
-                if (pageResultsLength == 0)
-                {
-                    Helpers.RedMessage("No more results found");
-                    page = 0;
-                    continue;
-                }
-
                 Console.WriteLine($"\nPage {page + 1} | {page * 10}-{(page + 1) * 10}/{results.Count}");
 
                 var outputStrings = pageResults.Select(x => x.OutputString).ToList();
@@ -127,7 +120,9 @@ namespace loc0Loadr
                 }
                 else if (searchAction == (pageResultsLength + 2).ToString())
                 {
-                    page = page - 1 < 0 ? 0 : page - 1;
+                    page = page - 1 < 0
+                        ? 0
+                        : page - 1;
                 }
                 else if (searchAction == (pageResultsLength + 3).ToString())
                 {
