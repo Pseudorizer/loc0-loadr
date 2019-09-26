@@ -65,7 +65,7 @@ namespace loc0Loadr
         {
             string url = Helpers.TakeInput("Enter URL: ");
 
-            string[] urlMatches = Regex.Split(url, @"\/(\w+)\/(\d+)"); // ty smloadr for the regex
+            string[] urlMatches = Regex.Split(url, @"https?:\/\/www\.deezer\..+\/(\w+)\/(\d+)"); // ty smloadr for the regex
 
             if (urlMatches.Length < 3)
             {
@@ -92,6 +92,9 @@ namespace loc0Loadr
                     break;
                 case "album":
                     await deezerDownloader.ProcessAlbum(id);
+                    break;
+                default:
+                    Helpers.RedMessage($"{type} is an unsupported type");
                     break;
             }
         }

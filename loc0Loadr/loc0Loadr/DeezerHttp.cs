@@ -23,6 +23,8 @@ namespace loc0Loadr
         private readonly HttpClient _httpClient;
         private readonly DeezerFunctions _deezerFunctions;
         private string _apiToken;
+        
+        private const string ApiUrl = "https://www.deezer.com/ajax/gw-light.php";
 
         public DeezerHttp(string arl)
         {
@@ -44,7 +46,7 @@ namespace loc0Loadr
             Console.WriteLine("Grabbing API token...");
             using (FormUrlEncodedContent formContent = Helpers.BuildDeezerApiContent("", "deezer.getUserData"))
             {
-                using (HttpResponseMessage apiRequest = await _httpClient.PostAsync(Helpers.ApiUrl, formContent))
+                using (HttpResponseMessage apiRequest = await _httpClient.PostAsync(ApiUrl, formContent))
                 {
                     if (!apiRequest.IsSuccessStatusCode)
                     {
@@ -85,7 +87,7 @@ namespace loc0Loadr
         public async Task<string> Search(string searchItem, TrackType type)
         {
             string queryString = await Helpers.BuildDeezerApiQueryString(_apiToken, "deezer.pageSearch");
-            string url = $"{Helpers.ApiUrl}?{queryString}";
+            string url = $"{ApiUrl}?{queryString}";
 
             string bodyData = JsonConvert.SerializeObject(new
             {
@@ -138,7 +140,7 @@ namespace loc0Loadr
         public async Task<JObject> HitUnofficialApi(string method, JObject data, int retries = 3)
         {
             string queryString = await Helpers.BuildDeezerApiQueryString(_apiToken, method);
-            string url = $"{Helpers.ApiUrl}?{queryString}";
+            string url = $"{ApiUrl}?{queryString}";
 
             string bodyData = JsonConvert.SerializeObject(data);
 
@@ -225,7 +227,7 @@ namespace loc0Loadr
             return null;
         }
 
-        public async Task<byte[]> DownloadTrack(string url, string title, int retries = 3)
+        public async Task<byte[]> DownloadTrack(string url, IProgressBar trackProgres, string title, int retries = 3)
         {
             var attempts = 1;
 
@@ -237,7 +239,7 @@ namespace loc0Loadr
                     {
                         if (downloadResponse.IsSuccessStatusCode && downloadResponse.Content.Headers.ContentLength.HasValue)
                         {
-                            return await DownloadWithProgress(downloadResponse, title);
+                            return await DownloadWithProgress(downloadResponse, trackProgres, title);
                         }
                     }
                 }
@@ -254,7 +256,7 @@ namespace loc0Loadr
             return null;
         }
 
-        private async Task<byte[]> DownloadWithProgress(HttpResponseMessage response, string title)
+        private async Task<byte[]> DownloadWithProgress(HttpResponseMessage response, IProgressBar trackProgress, string title)
         {
             // thanks stackoverflow
             using (Stream fileStream = await response.Content.ReadAsStreamAsync())
@@ -269,15 +271,13 @@ namespace loc0Loadr
                 var buffer = new byte[4096];
                 var isMoreToRead = true;
                 
-                var progressBar = new ProgressBar(PbStyle.SingleLine, 100, 100);
-
                 do
                 {
                     int read = await fileStream.ReadAsync(buffer, 0, buffer.Length);
 
                     if (read == 0)
                     {
-                        progressBar.Next($"{title} | Download Complete");
+                        trackProgress.Next($"{title} | Download Complete");
                         isMoreToRead = false;
                     }
                     else
@@ -293,7 +293,7 @@ namespace loc0Loadr
                         double totalReadMegabytes = ByteSize.FromBytes(totalRead).MegaBytes;
                         totalReadMegabytes = Math.Round(totalReadMegabytes, 2);
                         
-                        progressBar.Refresh(Convert.ToInt32(percent), $"{title} | {totalReadMegabytes}MB/{totalMegabytes}MB");
+                        trackProgress.Refresh(Convert.ToInt32(percent), $"{title} | {totalReadMegabytes}MB/{totalMegabytes}MB");
                     }
                                     
                 } while (isMoreToRead);

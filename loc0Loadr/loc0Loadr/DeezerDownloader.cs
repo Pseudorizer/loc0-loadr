@@ -21,7 +21,7 @@ namespace loc0Loadr
             _deezerHttp = deezerHttp;
             _audioQuality = audioQuality;
         }
-        
+
         public async Task<bool> ProcessArtist(string id)
         {
             JObject discographyInfo = await _deezerHttp.HitUnofficialApi("album.getDiscography", new JObject
@@ -33,7 +33,7 @@ namespace loc0Loadr
                 ["nb_songs"] = -1,
                 ["start"] = 0
             });
-            
+
             discographyInfo.DisplayDeezerErrors("Discography");
 
             if (discographyInfo["results"]?["data"] == null || discographyInfo["results"]["count"].Value<int>() <= 0)
@@ -43,15 +43,15 @@ namespace loc0Loadr
             }
 
             var discographyItems = (JArray) discographyInfo["results"]["data"];
-            
-            List<bool> artistResults = new List<bool>();
+
+            var artistResults = new List<bool>();
 
             foreach (JObject discographyItem in discographyItems.Children<JObject>())
             {
                 var albumId = discographyItem["ALB_ID"].Value<string>();
 
                 bool albumDownloadResults = await ProcessAlbum(albumId);
-                
+
                 artistResults.Add(albumDownloadResults);
             }
 
@@ -80,7 +80,7 @@ namespace loc0Loadr
             }
 
             Console.WriteLine($"\nDownloading {albumInfo.AlbumTags.Title} ({albumInfo.AlbumTags.Type})");
-            
+
             var results = new List<bool>();
             var tasks = new List<Task>();
 
@@ -90,12 +90,12 @@ namespace loc0Loadr
             {
                 maxConcurrentDownloads = 3;
             }
-            
+
             var throttler = new SemaphoreSlim(maxConcurrentDownloads);
 
             List<JObject> songs = albumInfo.Songs.Children<JObject>().ToList();
             int songsCount = songs.Count;
-            
+
             var progressBar = new ProgressBar(PbStyle.SingleLine, songsCount);
             var complete = 0;
             progressBar.Refresh(complete, $"Tracks processed {complete}/{songsCount}");
@@ -104,21 +104,20 @@ namespace loc0Loadr
             {
                 await throttler.WaitAsync();
 
-                JObject song = albumInfoSong;
                 tasks.Add(
                     Task.Run(async () =>
                     {
                         try
                         {
-                            var trackId = song["SNG_ID"].Value<string>();
+                            var trackId = albumInfoSong["SNG_ID"].Value<string>();
 
                             bool downloadResult = await ProcessTrack(trackId, albumInfo);
 
                             complete++;
                             progressBar.Refresh(complete, $"Tracks processed {complete}/{songsCount}");
-                            
+
                             results.Add(downloadResult);
-                            
+
                         }
                         finally
                         {
@@ -129,9 +128,9 @@ namespace loc0Loadr
             }
 
             await Task.WhenAll(tasks);
-            
+
             throttler.Dispose();
-            
+
             int downloadsSucceed = results.Count(x => x);
 
             if (downloadsSucceed == results.Count)
@@ -152,7 +151,7 @@ namespace loc0Loadr
             {
                 return null;
             }
-            
+
             JObject albumJson = await _deezerHttp.HitUnofficialApi("deezer.pageAlbum", new JObject
             {
                 ["ALB_ID"] = id,
@@ -164,7 +163,7 @@ namespace loc0Loadr
             {
                 return null;
             }
-            
+
             JObject officialAlbumJson = await _deezerHttp.HitOfficialApi("album", id);
 
             return AlbumInfo.BuildAlbumInfo(albumJson, officialAlbumJson);
@@ -172,19 +171,21 @@ namespace loc0Loadr
 
         public async Task<bool> DownloadPlaylist(string id)
         {
-            
+
             return true;
         }
 
         public async Task<bool> ProcessTrack(string id, AlbumInfo albumInfo = null, TrackInfo trackInfo = null)
         {
+            var trackProgress = new ProgressBar(100, 100);
+
             if (trackInfo == null)
             {
                 trackInfo = await GetTrackInfo(id);
 
                 if (trackInfo == null)
                 {
-                    Helpers.RedMessage("Failed to get track info");
+                    trackProgress.Refresh(0, $"{id} | Failed to get track info");
                     return false;
                 }
             }
@@ -192,51 +193,70 @@ namespace loc0Loadr
             if (albumInfo == null)
             {
                 string albumId = trackInfo.TrackTags.AlbumId;
-                
+
                 albumInfo = await GetAlbumInfo(albumId);
 
                 if (albumInfo == null)
                 {
-                    Helpers.RedMessage("Failed to get album info");
-                    return false;
+                    trackProgress.Refresh(0, $"{id} | Failed to get album info");
+                    return
+                        false; // this shouldn't return, it shouldn't care, force album info to be null at some point and see what needs fixing
                 }
             }
 
+            string trackProgressTitle =
+                $"\nDownloading {albumInfo.AlbumTags.Artists[0].Name} - {trackInfo.TrackTags.Title} | Quality: {Helpers.AudioQualityToOutputString[_audioQuality]}";
+
+            trackProgress.Next($"{trackProgressTitle} | Checking for available qualities");
             if (!UpdateAudioQualityToAvailable(trackInfo))
             {
-                Helpers.RedMessage("Failed to find valid quality");
+                trackProgress.Refresh(0, $"{trackProgressTitle} | Failed to find valid quality");
                 return false;
             }
 
+            trackProgress.Next($"{trackProgressTitle} | Getting save location");
             string saveLocation = BuildSaveLocation(trackInfo, albumInfo);
             string saveLocationDirectory = Path.GetDirectoryName(saveLocation);
             string tempTrackPath = Helpers.GetTempTrackPath(saveLocationDirectory, trackInfo.TrackTags.Id);
 
             if (File.Exists(saveLocation))
             {
-                string filename = Path.GetFileName(saveLocation);
-                Helpers.GreenMessage($"{filename} already exists");
+                trackProgress.Refresh(100, $"{trackProgressTitle} already exists");
                 return true;
             }
 
-            byte[] decryptedBytes = await GetDecryptedBytes(trackInfo, albumInfo.AlbumTags.Artists[0].Name);
+            byte[] decryptedBytes = await GetDecryptedBytes(trackInfo, trackProgress, trackProgressTitle);
 
+            trackProgress.Next($"{trackProgressTitle} | Writing to disk");
             if (!Helpers.WriteTrackBytes(decryptedBytes, tempTrackPath))
             {
-                Helpers.RedMessage("Failed to write file to disk");
+                trackProgress.Refresh(0, $"{trackProgressTitle} | Failed to write file to disk");
                 return false;
             }
 
             byte[] albumCover = await GetAndSaveAlbumArt(albumInfo.AlbumTags.PictureId, saveLocationDirectory);
-            
+
+            trackProgress.Next($"{trackProgressTitle} | Writing metadata");
             var metadataWriter = new MetadataWriter(trackInfo, albumInfo, tempTrackPath, albumCover);
             if (!metadataWriter.WriteMetaData(_audioQuality == AudioQuality.Flac))
             {
-                Helpers.RedMessage("Failed to write tags");
+                trackProgress.Refresh(0, $"{trackProgressTitle} | Failed to write tags");
             }
-            
+
             File.Move(tempTrackPath, saveLocation);
 
+            string tempLyricFilePath = Path.Combine(saveLocationDirectory,
+                Path.GetFileNameWithoutExtension(tempTrackPath) + ".lrc");
+
+            if (File.Exists(tempTrackPath))
+            {
+                string properLyricFilePath =
+                    Path.Combine(saveLocation, Path.GetFileNameWithoutExtension(saveLocation) + ".lrc");
+                
+                File.Move(tempLyricFilePath, properLyricFilePath);
+            }
+
+            trackProgress.Next($"{trackProgressTitle} | Complete");
             return true;
         }
 
@@ -246,7 +266,7 @@ namespace loc0Loadr
             {
                 return null;
             }
-            
+
             JObject trackInfoJObject = await _deezerHttp.HitUnofficialApi("deezer.pageTrack", new JObject
             {
                 ["SNG_ID"] = id
@@ -286,7 +306,7 @@ namespace loc0Loadr
             }
 
             return ValidAudioQualityFound(0, startIndex);
-            
+
             bool ValidAudioQualityFound(int startingIndex, int endIndex)
             {
                 for (int index = startingIndex; index < endIndex; index++)
@@ -301,7 +321,7 @@ namespace loc0Loadr
                         return true;
                     }
                 }
-            
+
                 return false;
             }
         }
@@ -314,12 +334,12 @@ namespace loc0Loadr
             string trackTitle = trackInfo.TrackTags.Title.SanitseString();
             string discNumber = trackInfo.TrackTags.DiscNumber.SanitseString();
             string trackNumber = trackInfo.TrackTags.TrackNumber.SanitseString().PadNumber();
-            
+
             var downloadPath = Configuration.GetValue<string>("downloadLocation");
             string extension = _audioQuality == AudioQuality.Flac
                 ? ".flac"
                 : ".mp3";
-            
+
             string filename = $"{trackNumber} - {trackTitle}{extension}";
             string directoryPath = $@"{artist}\{albumTitle} ({type})\";
 
@@ -333,13 +353,13 @@ namespace loc0Loadr
             return savePath;
         }
 
-        private async Task<byte[]> GetDecryptedBytes(TrackInfo trackInfo, string albumArtist)
+        private async Task<byte[]> GetDecryptedBytes(TrackInfo trackInfo, IProgressBar trackProgress, string progressTitle)
         {
+            trackProgress.Next($"{progressTitle} | Grabbing download URL");
+
             string downloadUrl = EncryptionHandler.GetDownloadUrl(trackInfo, (int) _audioQuality);
 
-            string title = $"\nDownloading {albumArtist} - {trackInfo.TrackTags.Title} | Quality: {Helpers.AudioQualityToOutputString[_audioQuality]}";
-
-            byte[] encryptedBytes = await _deezerHttp.DownloadTrack(downloadUrl, title);
+            byte[] encryptedBytes = await _deezerHttp.DownloadTrack(downloadUrl, trackProgress, progressTitle);
 
             if (encryptedBytes == null || encryptedBytes.Length == 0)
             {
@@ -347,13 +367,14 @@ namespace loc0Loadr
                 return new byte[0];
             }
 
+            trackProgress.Next($"{progressTitle} | Decrypting track");
             return await EncryptionHandler.DecryptTrack(encryptedBytes, trackInfo.TrackTags.Id);
         }
 
         private async Task<byte[]> GetAndSaveAlbumArt(string pictureId, string saveDirectory)
         {
             string coverPath = Path.Combine(saveDirectory, "cover.jpg");
-            
+
             if (File.Exists(coverPath))
             {
                 while (true)
@@ -368,7 +389,7 @@ namespace loc0Loadr
                     }
                 }
             }
-            
+
             byte[] coverBytes = await _deezerHttp.GetAlbumArt(pictureId);
 
             if (coverBytes.Length == 0)
@@ -381,7 +402,7 @@ namespace loc0Loadr
             {
                 return coverBytes;
             }
-            
+
             try
             {
                 using (FileStream coverFileStream = File.Create(coverPath))
@@ -397,6 +418,4 @@ namespace loc0Loadr
             return coverBytes;
         }
     }
-    
-    
 }

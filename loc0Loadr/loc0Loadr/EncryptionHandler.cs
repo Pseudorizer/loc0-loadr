@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -30,13 +29,11 @@ namespace loc0Loadr
             byte[] keyBytes = Encoding.UTF8.GetBytes(blowfishKey);
             long streamLength = downloadBytes.Length;
             
-            IEnumerable<Worker> workers = GetWorkers(streamLength);
-
             var decryptedChunks = new List<DecryptedBytes>();
             var decryptTasks = new List<Task>();
 
             // ReSharper disable once LoopCanBeConvertedToQuery
-            foreach (Worker worker in workers)
+            foreach (Worker worker in GetWorkers(streamLength))
             {
                 decryptTasks.Add(
                     Task.Run(() =>
@@ -77,11 +74,9 @@ namespace loc0Loadr
             long subTotal = chunksPerWorker * workersCount * chunk;
             long remainingBytes = streamLength - subTotal;
 
-            var workers = new List<Worker>();
-
             for (var i = 0; i < workersCount; i++)
             {
-                var worker = new Worker()
+                var worker = new Worker
                 {
                     StartingOffset = i * chunksPerWorker * chunk,
                     EndOffset = (i + 1) * chunksPerWorker * chunk,
@@ -93,10 +88,8 @@ namespace loc0Loadr
                     worker.EndOffset += remainingBytes;
                 }
 
-                workers.Add(worker);
+                yield return worker;
             }
-
-            return workers;
         }
 
         private static byte[] DecryptChunks(byte[] downloadBytes, long streamLength, byte[] keyBytes)
