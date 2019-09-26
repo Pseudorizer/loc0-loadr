@@ -102,7 +102,7 @@ namespace loc0Loadr
         private async Task DownloadFromSearch(AudioQuality quality)
         {
             var deezerDownloader = new DeezerDownloader(_deezerHttp, quality);
-            var deezerSearcher = new DeezerSearcher(_deezerHttp, quality);
+            var deezerSearcher = new DeezerSearcher(_deezerHttp);
             
             string searchType = Helpers.TakeInput(1, 4, "Track", "Album", "Artist", "Playlist");
             string searchParam = Helpers.TakeInput("Enter search term: ");
