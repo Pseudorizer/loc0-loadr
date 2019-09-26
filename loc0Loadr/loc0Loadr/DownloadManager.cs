@@ -101,7 +101,27 @@ namespace loc0Loadr
 
         private async Task DownloadFromSearch(AudioQuality quality)
         {
+            var deezerDownloader = new DeezerDownloader(_deezerHttp, quality);
+            var deezerSearcher = new DeezerSearcher(_deezerHttp, quality);
             
+            string searchType = Helpers.TakeInput(1, 4, "Track", "Album", "Artist", "Playlist");
+            string searchParam = Helpers.TakeInput("Enter search term: ");
+            
+            switch (searchType)
+            {
+                case "1":
+                    string trackId = await deezerSearcher.Search(searchParam, SearchType.Track);
+                    break;
+                case "2":
+                    string albumId = await deezerSearcher.Search(searchParam, SearchType.Album);
+                    break;
+                case "3":
+                    string artistId = await deezerSearcher.Search(searchParam, SearchType.Artist);
+                    break;
+                case "4":
+                    string playlistId = await deezerSearcher.Search(searchParam, SearchType.Playlist);
+                    break;
+            }
         }
 
         private void ConsoleOnCancelKeyPress(object sender, ConsoleCancelEventArgs e)

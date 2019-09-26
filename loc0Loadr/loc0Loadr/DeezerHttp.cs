@@ -84,59 +84,6 @@ namespace loc0Loadr
             }
         }
 
-        public async Task<string> Search(string searchItem, TrackType type)
-        {
-            string queryString = await Helpers.BuildDeezerApiQueryString(_apiToken, "deezer.pageSearch");
-            string url = $"{ApiUrl}?{queryString}";
-
-            string bodyData = JsonConvert.SerializeObject(new
-            {
-                query = searchItem,
-                start = 0,
-                nb = 40,
-                suggest = false,
-                artist_suggest = false,
-                top_tracks = false
-            });
-
-            using (var bodyContent = new StringContent(bodyData, Encoding.UTF8, "application/json"))
-            {
-                using (HttpResponseMessage searchResponse = await _httpClient.PostAsync(url, bodyContent))
-                {
-                    if (!searchResponse.IsSuccessStatusCode)
-                    {
-                        Helpers.RedMessage("Failed to search API");
-                        return string.Empty;
-                    }
-
-                    string searchContent = await searchResponse.Content.ReadAsStringAsync();
-
-                    JObject searchJson = JObject.Parse(searchContent);
-
-                    searchJson.DisplayDeezerErrors("Search");
-
-                    IEnumerable<IGrouping<TrackType, SearchResult>> results = _deezerFunctions
-                        .ParseSearchJson(searchJson, type)
-                        .GroupBy(x => x.Type);
-
-                    foreach (IGrouping<TrackType, SearchResult> searchResults in results)
-                    {
-                        Console.WriteLine($"---{searchResults.FirstOrDefault().Type}---");
-                        foreach (SearchResult searchResult in searchResults)
-                        {
-                            string artists = searchResult.Artists == null
-                                ? ""
-                                : string.Join(", ", searchResult.Artists);
-
-                            Console.WriteLine($"{searchResult.Type} - {artists} - {searchResult.Title}");
-                        }
-                    }
-                }
-            }
-
-            return "";
-        }
-
         public async Task<JObject> HitUnofficialApi(string method, JObject data, int retries = 3)
         {
             string queryString = await Helpers.BuildDeezerApiQueryString(_apiToken, method);
