@@ -8,6 +8,7 @@ using FlacLibSharp;
 using loc0Loadr.Models;
 using TagLib;
 using TagLib.Id3v2;
+using File = System.IO.File;
 using Picture = TagLib.Picture;
 using PictureType = TagLib.PictureType;
 using Tag = TagLib.Id3v2.Tag;
@@ -174,7 +175,7 @@ namespace loc0Loadr
                 
                 if (_coverBytes.Length > 0)
                 {
-                    var coverArt = new FlacLibSharp.Picture()
+                    var coverArt = new FlacLibSharp.Picture
                     {
                         Description = "Cover",
                         ColorDepth = 8,
@@ -241,7 +242,6 @@ namespace loc0Loadr
                 if (_trackInfo?.Lyrics != null)
                 {
                     comments["Lyrics"] = new VorbisCommentValues(_trackInfo.Lyrics.UnSyncedLyrics ?? "");
-
                     WriteLyricsFile();
                 }
 
@@ -270,7 +270,7 @@ namespace loc0Loadr
                 if (_coverBytes.Length > 0)
                 {
                     var byteVector = new ByteVector(_coverBytes);
-                    var coverPicture = new Picture()
+                    var coverPicture = new Picture
                     {
                         Description = "Cover",
                         Data = byteVector,
@@ -382,6 +382,11 @@ namespace loc0Loadr
 
         private void WriteLyricsFile()
         {
+            if (_trackInfo.Lyrics.SyncedLyrics == null)
+            {
+                return;
+            }
+            
             IEnumerable<SyncedLyrics> syncedLyrics = _trackInfo.Lyrics.SyncedLyrics
                 .Where(y => y != null)
                 .Where(x => !string.IsNullOrWhiteSpace(x.Timestamp) || !string.IsNullOrWhiteSpace(x.Line));
@@ -393,8 +398,13 @@ namespace loc0Loadr
 
             try
             {
-                System.IO.File.Create(lyricFilePath).Close();
-                System.IO.File.WriteAllText(lyricFilePath, lyricsFormatted);
+                using (FileStream fileStream = File.Create(lyricFilePath))
+                {
+                    using (var sw = new StreamWriter(fileStream))
+                    {
+                        sw.Write(lyricsFormatted);
+                    }
+                }
             }
             catch (IOException ex)
             {
