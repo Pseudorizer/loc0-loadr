@@ -110,16 +110,18 @@ namespace loc0Loadr
             switch (searchType)
             {
                 case "1":
-                    string trackId = await deezerSearcher.Search(searchParam, SearchType.Track);
+                    SearchResult trackId = await deezerSearcher.Search(searchParam, SearchType.Track);
+                    var e = await deezerDownloader.ProcessTrack(trackId.Id, trackId.Json);
                     break;
                 case "2":
-                    string albumId = await deezerSearcher.Search(searchParam, SearchType.Album);
+                    SearchResult albumId = await deezerSearcher.Search(searchParam, SearchType.Album);
+                    var i = await deezerDownloader.ProcessAlbum(albumId.Id, albumId.Json);
                     break;
                 case "3":
-                    string artistId = await deezerSearcher.Search(searchParam, SearchType.Artist);
+                    SearchResult artistId = await deezerSearcher.Search(searchParam, SearchType.Artist);
                     break;
                 case "4":
-                    string playlistId = await deezerSearcher.Search(searchParam, SearchType.Playlist);
+                    SearchResult playlistId = await deezerSearcher.Search(searchParam, SearchType.Playlist);
                     break;
             }
         }

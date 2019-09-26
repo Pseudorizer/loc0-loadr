@@ -69,9 +69,20 @@ namespace loc0Loadr
             return true;
         }
 
-        public async Task<bool> ProcessAlbum(string id)
+        public async Task<bool> ProcessAlbum(string id, JObject albumJson)
         {
-            AlbumInfo albumInfo = await GetAlbumInfo(id);
+            JObject officialAlbumInfo = await _deezerHttp.HitOfficialApi("album", id);
+            AlbumInfo albumInfo = AlbumInfo.BuildAlbumInfo(albumJson, officialAlbumInfo);
+
+            return await ProcessAlbum(id, albumInfo);
+        }
+
+        public async Task<bool> ProcessAlbum(string id, AlbumInfo albumInfo = null)
+        {
+            if (albumInfo == null)
+            {
+                albumInfo = await GetAlbumInfo(id);
+            }
 
             if (albumInfo == null)
             {
@@ -173,6 +184,14 @@ namespace loc0Loadr
         {
 
             return true;
+        }
+
+        public async Task<bool> ProcessTrack(string id, JObject trackJson)
+        {
+            JObject officialTrackInfo = await _deezerHttp.HitOfficialApi("track", id);
+            TrackInfo trackInfo = TrackInfo.BuildTrackInfo(trackJson, officialTrackInfo);
+
+            return await ProcessTrack(id, trackInfo: trackInfo);
         }
 
         public async Task<bool> ProcessTrack(string id, AlbumInfo albumInfo = null, TrackInfo trackInfo = null)

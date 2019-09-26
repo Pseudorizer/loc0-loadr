@@ -16,11 +16,11 @@ namespace loc0Loadr
             _deezerHttp = deezerHttp;
         }
 
-        public async Task<string> Search(string term, SearchType searchType)
+        public async Task<SearchResult> Search(string term, SearchType searchType)
         {
             if (string.IsNullOrWhiteSpace(term))
             {
-                return string.Empty;
+                return null;
             }
 
             var resultLimit = Configuration.GetValue<int>("maxSearchResults");
@@ -34,7 +34,6 @@ namespace loc0Loadr
                 resultLimit = 500;
             }
 
-            resultLimit = 20;
 
             JObject searchResults = await _deezerHttp.HitUnofficialApi("deezer.pageSearch", new JObject
             {
@@ -51,7 +50,7 @@ namespace loc0Loadr
             if (searchResults?["results"] == null)
             {
                 Helpers.RedMessage("Results object was null");
-                return string.Empty;
+                return null;
             }
             
             var results = new List<SearchResult>();
@@ -59,92 +58,143 @@ namespace loc0Loadr
             switch (searchType)
             {
                 case SearchType.Track:
-                    if (searchResults["results"]?["TRACK"] == null || searchResults["results"]["TRACK"]["count"].Value<int>() <= 0)
-                    {
-                        Helpers.RedMessage("No track results found");
-                        return string.Empty;
-                    }
-
-                    JEnumerable<JObject> tracks = searchResults["results"]["TRACK"]["data"].Children<JObject>();
-                    
-                    foreach (JObject track in tracks)
-                    {
-                        var id = track?["SNG_ID"].Value<string>();
-                        var title = track?["SNG_TITLE"].Value<string>();
-                        var artistName = track?["ART_NAME"].Value<string>();
-                        var albumName = track?["ALB_TITLE"].Value<string>();
-                        
-                        results.Add(new SearchResult
-                        {
-                            Id = id,
-                            OutputString = $"[{id}] {artistName} - {title} from {albumName}"
-                        });
-                    }
-                    
+                    results = SearchResultParser.GetTrackResults(searchResults).ToList();
+                    break;
+                case SearchType.Album:
+                    results = SearchResultParser.GetAlbumResults(searchResults).ToList();
                     break;
             }
 
             if (results.Count == 0)
             {
                 Helpers.RedMessage("No results found");
-                return string.Empty;
+                return null;
             }
 
-            int r = results.Count / 10;
-            int p = 0;
+            return ChooseResult(results);
+        }
+
+        private static SearchResult ChooseResult(IReadOnlyCollection<SearchResult> results)
+        {
+            var page = 0;
 
             while (true)
             {
-                var skip = p * 10;
+                int skip = page * 10;
 
                 if (skip == results.Count)
                 {
                     skip -= 10;
+                    page -= 1;
                 }
 
-                var g = results.Skip(skip).Take(10).ToList();
-                var gLength = g.Count;
+                var pageResults = results.Skip(skip).Take(10).ToList();
+                int pageResultsLength = pageResults.Count;
 
-                if (gLength == 0)
+                if (pageResultsLength == 0)
                 {
                     Helpers.RedMessage("No more results found");
-                    p = 0;
+                    page = 0;
                     continue;
                 }
 
-                Console.WriteLine($"\nPage {p + 1} | {p * 10}-{(p + 1) * 10}/{results.Count}");
+                Console.WriteLine($"\nPage {page + 1} | {page * 10}-{(page + 1) * 10}/{results.Count}");
 
-                var t = g.Select(x => x.OutputString).ToList();
-                t.Add("See ten more");
-                t.Add("Go back ten");
-                t.Add("Back to start");
-                t.Add("No valid results, exit");
-                
-                var e = Helpers.TakeInput(1, t.Count, t.ToArray());
+                var outputStrings = pageResults.Select(x => x.OutputString).ToList();
+                outputStrings.Add("See ten more");
+                outputStrings.Add("Go back ten");
+                outputStrings.Add("Back to start");
+                outputStrings.Add("No valid results, exit");
 
-                if (e == (gLength + 1).ToString())
+                string searchAction = Helpers.TakeInput(1, outputStrings.Count, outputStrings.ToArray());
+
+                if (searchAction == (pageResultsLength + 1).ToString())
                 {
-                    p++;
+                    page++;
                 }
-                else if (e == (gLength + 2).ToString())
+                else if (searchAction == (pageResultsLength + 2).ToString())
                 {
-                    p = p - 1 < 0 ? 0 : p - 1;
+                    page = page - 1 < 0 ? 0 : page - 1;
                 }
-                else if (e == (gLength + 3).ToString())
+                else if (searchAction == (pageResultsLength + 3).ToString())
                 {
-                    p = 0;
+                    page = 0;
                 }
-                else if (e == (gLength + 4).ToString())
+                else if (searchAction == (pageResultsLength + 4).ToString())
                 {
-                    return string.Empty;
+                    return null;
                 }
                 else
                 {
-                    return g[int.Parse(e)].Id;
+                    return pageResults[int.Parse(searchAction)];
                 }
             }
+        }
+    }
+    
+    internal static class SearchResultParser
+    {
+        public static IEnumerable<SearchResult> GetTrackResults(JObject searchResults)
+        {
+            if (searchResults["results"]?["TRACK"]?["data"] == null)
+            {
+                Helpers.RedMessage("No track results found");
+                yield break;
+            }
 
-            return "";
+            JEnumerable<JObject> tracks = searchResults["results"]["TRACK"]["data"].Children<JObject>();
+
+            if (!tracks.Any())
+            {
+                Helpers.RedMessage("No track results found");
+                yield break;
+            }
+
+            foreach (JObject track in tracks)
+            {
+                var id = track?["SNG_ID"].Value<string>();
+                var title = track?["SNG_TITLE"].Value<string>();
+                var artistName = track?["ART_NAME"].Value<string>();
+                var albumName = track?["ALB_TITLE"].Value<string>();
+
+                yield return new SearchResult
+                {
+                    Id = id,
+                    OutputString = $"[{id}] [Artist: {artistName}] [Track: {title}] [Album: {albumName}]",
+                    Json = track
+                };
+            }
+        }
+        
+        public static IEnumerable<SearchResult> GetAlbumResults(JObject searchResults)
+        {
+            if (searchResults["results"]?["ALBUM"]?["data"] == null)
+            {
+                Helpers.RedMessage("No album results found");
+                yield break;
+            }
+
+            var albums = searchResults["results"]["ALBUM"]["data"].Children<JObject>();
+
+            if (!albums.Any())
+            {
+                Helpers.RedMessage("No album results found");
+                yield break;
+            }
+
+            foreach (JObject album in albums)
+            {
+                var id = album?["ALB_ID"].Value<string>();
+                var albumName = album?["ALB_TITLE"].Value<string>();
+                var artistName = album?["ART_NAME"].Value<string>();
+
+                yield return new SearchResult
+                {
+                    Id = id,
+                    OutputString = $"[{id}] [Artist: {artistName}] [Album: {albumName}]",
+                    Json = album
+                };
+            }
         }
     }
 
@@ -152,5 +202,6 @@ namespace loc0Loadr
     {
         public string Id { get; set; }
         public string OutputString { get; set; }
+        public JObject Json { get; set; }
     }
 }
