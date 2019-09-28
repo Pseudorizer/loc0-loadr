@@ -6,7 +6,7 @@ using loc0Loadr.Enums;
 using loc0Loadr.Models;
 using Newtonsoft.Json.Linq;
 
-namespace loc0Loadr
+namespace loc0Loadr.Deezer
 {
     internal class DeezerSearcher
     {
@@ -173,7 +173,7 @@ namespace loc0Loadr
                 yield return new SearchResult
                 {
                     Id = id,
-                    OutputString = $"[{id}] [Artist: {artistName}] [Track: {title}] [Album: {albumName}]",
+                    OutputString = $"[Artist: {artistName}] [Track: {title}] [Album: {albumName}]",
                     Json = track
                 };
             }
@@ -204,7 +204,7 @@ namespace loc0Loadr
                 yield return new SearchResult
                 {
                     Id = id,
-                    OutputString = $"[{id}] [Artist: {artistName}] [Album: {albumName}]",
+                    OutputString = $"[Artist: {artistName}] [Album: {albumName}]",
                     Json = album
                 };
             }

@@ -6,16 +6,18 @@ using System.Threading;
 using System.Threading.Tasks;
 using Konsole;
 using loc0Loadr.Enums;
+using loc0Loadr.Metadata;
 using loc0Loadr.Models;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using File = System.IO.File;
 
-namespace loc0Loadr
+namespace loc0Loadr.Deezer
 {
     internal class DeezerDownloader
     {
         private readonly DeezerHttp _deezerHttp;
-        private AudioQuality _audioQuality;
+        private readonly AudioQuality _audioQuality;
 
         public DeezerDownloader(DeezerHttp deezerHttp, AudioQuality audioQuality)
         {
@@ -70,25 +72,17 @@ namespace loc0Loadr
             return true;
         }
 
-        public async Task<bool> ProcessAlbum(string id, JObject albumJson)
-        {
-            JObject officialAlbumInfo = await _deezerHttp.HitOfficialApi("album", id);
-            AlbumInfo albumInfo = AlbumInfo.BuildAlbumInfo(albumJson, officialAlbumInfo);
-
-            return await ProcessAlbum(id, albumInfo);
-        }
-
         public async Task<bool> ProcessAlbum(string id, AlbumInfo albumInfo = null)
         {
             if (albumInfo == null)
             {
                 albumInfo = await GetAlbumInfo(id);
-            }
-
-            if (albumInfo == null)
-            {
-                Helpers.RedMessage("Failed to get album info");
-                return false;
+                
+                if (albumInfo == null)
+                {
+                    Helpers.RedMessage("Failed to get album info");
+                    return false;
+                }
             }
 
             Console.WriteLine($"\nDownloading {albumInfo.AlbumTags.Title} ({albumInfo.AlbumTags.Type})");
@@ -153,7 +147,7 @@ namespace loc0Loadr
             {
                 Helpers.RedMessage($"\n{downloadsSucceed}/{results.Count} Downloaded");
             }
-
+            
             return downloadsSucceed == results.Count;
         }
 
@@ -181,10 +175,36 @@ namespace loc0Loadr
             return AlbumInfo.BuildAlbumInfo(albumJson, officialAlbumJson);
         }
 
-        public async Task<bool> DownloadPlaylist(string id)
+        public async Task<bool> ProcessPlaylist(string id)
         {
-
+            var e = await GetPlaylistInfo(id);
             return true;
+        }
+
+        private async Task<AlbumInfo> GetPlaylistInfo(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id) || id == "0")
+            {
+                return null;
+            }
+
+            JObject playlistJson = await _deezerHttp.HitUnofficialApi("deezer.pagePlaylist", new JObject
+            {
+                ["playlist_id"] = id,
+                ["lang"] = "en",
+                ["nb"] = -1,
+                ["start"] = 0,
+                ["tab"] = 0,
+                ["tags"] = true,
+                ["header"] = true
+            });
+            
+            if (playlistJson?["results"]?["DATA"] == null || playlistJson["results"]?["SONGS"]?["data"] == null) // i dont like this, it shouldnt care if DATA is missing
+            {
+                return null;
+            }
+
+            return null;
         }
 
         public async Task<bool> ProcessTrack(string id, JObject trackJson)
@@ -230,20 +250,21 @@ namespace loc0Loadr
                 }
             }
 
-            string trackProgressTitle =
-                $"\nDownloading {albumInfo.AlbumTags.Artists[0].Name} - {trackInfo.TrackTags.Title} | Quality: {Helpers.AudioQualityToOutputString[_audioQuality]}";
-
-            trackProgress.Next($"{trackProgressTitle} | Checking for available qualities");
-            if (!UpdateAudioQualityToAvailable(trackInfo))
+            AudioQuality qualityToUse = FindAvailableAudioQuality(trackInfo);
+            
+            if (qualityToUse == AudioQuality.None)
             {
-                trackProgress.Refresh(0, $"{trackProgressTitle} | Failed to find valid quality");
+                Helpers.RedMessage("Failed to find any available audio quality");
                 return false;
             }
+            
+            string trackProgressTitle =
+                $"\nDownloading {albumInfo.AlbumTags.Artists[0].Name} - {trackInfo.TrackTags.Title} | Quality: {DeezerHelpers.AudioQualityToOutputString[qualityToUse]}";
 
             trackProgress.Next($"{trackProgressTitle} | Getting save location");
-            string saveLocation = BuildSaveLocation(trackInfo, albumInfo);
+            string saveLocation = BuildSaveLocation(trackInfo, albumInfo, qualityToUse);
             string saveLocationDirectory = Path.GetDirectoryName(saveLocation);
-            string tempTrackPath = Helpers.GetTempTrackPath(saveLocationDirectory, trackInfo.TrackTags.Id);
+            string tempTrackPath = DeezerHelpers.GetTempTrackPath(saveLocationDirectory, trackInfo.TrackTags.Id);
 
             if (File.Exists(saveLocation))
             {
@@ -251,10 +272,10 @@ namespace loc0Loadr
                 return true;
             }
 
-            byte[] decryptedBytes = await GetDecryptedBytes(trackInfo, trackProgress, trackProgressTitle);
+            byte[] decryptedBytes = await GetDecryptedBytes(trackInfo, qualityToUse, trackProgress, trackProgressTitle);
 
             trackProgress.Next($"{trackProgressTitle} | Writing to disk");
-            if (!Helpers.WriteTrackBytes(decryptedBytes, tempTrackPath))
+            if (!DeezerHelpers.WriteTrackBytes(decryptedBytes, tempTrackPath))
             {
                 trackProgress.Refresh(0, $"{trackProgressTitle} | Failed to write file to disk");
                 return false;
@@ -264,11 +285,19 @@ namespace loc0Loadr
 
             trackProgress.Next($"{trackProgressTitle} | Writing metadata");
             var metadataWriter = new MetadataWriter(trackInfo, albumInfo, tempTrackPath, albumCover);
-            if (!metadataWriter.WriteMetaData(_audioQuality == AudioQuality.Flac))
+            if (!metadataWriter.WriteMetaData(qualityToUse == AudioQuality.Flac))
             {
                 trackProgress.Refresh(0, $"{trackProgressTitle} | Failed to write tags");
             }
 
+            RenameFiles(tempTrackPath, saveLocation, saveLocationDirectory);
+
+            trackProgress.Next($"{trackProgressTitle} | Complete");
+            return true;
+        }
+
+        private static void RenameFiles(string tempTrackPath, string saveLocation, string saveLocationDirectory)
+        {
             File.Move(tempTrackPath, saveLocation);
 
             string tempLyricFilePath = Path.Combine(saveLocationDirectory,
@@ -278,12 +307,9 @@ namespace loc0Loadr
             {
                 string properLyricFilePath =
                     Path.Combine(saveLocationDirectory, Path.GetFileNameWithoutExtension(saveLocation) + ".lrc");
-                
+
                 File.Move(tempLyricFilePath, properLyricFilePath);
             }
-
-            trackProgress.Next($"{trackProgressTitle} | Complete");
-            return true;
         }
 
         private async Task<TrackInfo> GetTrackInfo(string id)
@@ -308,7 +334,7 @@ namespace loc0Loadr
         // the way this works is that if the wanted quality was not found, the next best will be tried and so on
         // until it wraps around to the start and tries the lower quality options, starting at highest lower quality
         // I.E. 320 -> FLAC -> 256 -> 128 -> null
-        private bool UpdateAudioQualityToAvailable(TrackInfo trackInfo)
+        private AudioQuality FindAvailableAudioQuality(TrackInfo trackInfo)
         {
             var enumIds = new List<int> {1, 5, 3, 9};
 
@@ -320,9 +346,11 @@ namespace loc0Loadr
                 startIndex = 0;
             }
 
-            if (ValidAudioQualityFound(startIndex, enumIds.Count))
+            AudioQuality newQuality = ValidAudioQualityFound(startIndex, enumIds.Count);
+
+            if (newQuality != AudioQuality.None)
             {
-                return true;
+                return newQuality;
             }
 
             if (_audioQuality != AudioQuality.Flac)
@@ -333,26 +361,25 @@ namespace loc0Loadr
 
             return ValidAudioQualityFound(0, startIndex);
 
-            bool ValidAudioQualityFound(int startingIndex, int endIndex)
+            AudioQuality ValidAudioQualityFound(int startingIndex, int endIndex)
             {
                 for (int index = startingIndex; index < endIndex; index++)
                 {
                     int enumId = enumIds[index];
-                    var tempAudioQuality = (AudioQuality) enumId;
-                    bool qualityIsAvailable = Helpers.CheckIfQualityIsAvailable(tempAudioQuality, trackInfo);
+                    var quality = (AudioQuality) enumId;
+                    bool qualityIsAvailable = DeezerHelpers.CheckIfQualityIsAvailable(quality, trackInfo);
 
                     if (qualityIsAvailable)
                     {
-                        _audioQuality = tempAudioQuality;
-                        return true;
+                        return quality;
                     }
                 }
 
-                return false;
+                return AudioQuality.None;
             }
         }
 
-        private string BuildSaveLocation(TrackInfo trackInfo, AlbumInfo albumInfo)
+        private string BuildSaveLocation(TrackInfo trackInfo, AlbumInfo albumInfo, AudioQuality audioQuality)
         {
             string artist = albumInfo.AlbumTags.Artists[0].Name.SanitseString();
             string type = albumInfo.AlbumTags.Type.SanitseString();
@@ -362,7 +389,7 @@ namespace loc0Loadr
             string trackNumber = trackInfo.TrackTags.TrackNumber.SanitseString().PadNumber();
 
             var downloadPath = Configuration.GetValue<string>("downloadLocation");
-            string extension = _audioQuality == AudioQuality.Flac
+            string extension = audioQuality == AudioQuality.Flac
                 ? ".flac"
                 : ".mp3";
 
@@ -379,11 +406,11 @@ namespace loc0Loadr
             return savePath;
         }
 
-        private async Task<byte[]> GetDecryptedBytes(TrackInfo trackInfo, IProgressBar trackProgress, string progressTitle)
+        private async Task<byte[]> GetDecryptedBytes(TrackInfo trackInfo, AudioQuality audioQuality, IProgressBar trackProgress, string progressTitle)
         {
             trackProgress.Next($"{progressTitle} | Grabbing download URL");
 
-            string downloadUrl = EncryptionHandler.GetDownloadUrl(trackInfo, (int) _audioQuality);
+            string downloadUrl = EncryptionHandler.GetDownloadUrl(trackInfo, (int) audioQuality);
 
             byte[] encryptedBytes = await _deezerHttp.DownloadTrack(downloadUrl, trackProgress, progressTitle);
 

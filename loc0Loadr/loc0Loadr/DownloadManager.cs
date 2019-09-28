@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using loc0Loadr.Deezer;
 using loc0Loadr.Enums;
 using loc0Loadr.Models;
 
@@ -48,7 +49,7 @@ namespace loc0Loadr
                 
                 string qualityChoice = Helpers.TakeInput(1, 4, "MP3 128", "MP3 256", "MP3 320", "FLAC");
 
-                AudioQuality quality = Helpers.InputToAudioQuality[qualityChoice];
+                AudioQuality quality = DeezerHelpers.InputToAudioQuality[qualityChoice];
 
                 // ReSharper disable once ConvertIfStatementToSwitchStatement
                 if (choice == "1")
@@ -89,7 +90,7 @@ namespace loc0Loadr
                     await deezerDownloader.ProcessArtist(id);
                     break;
                 case "playlist":
-                    await deezerDownloader.DownloadPlaylist(id);
+                    await deezerDownloader.ProcessPlaylist(id);
                     break;
                 case "album":
                     await deezerDownloader.ProcessAlbum(id);
@@ -120,7 +121,7 @@ namespace loc0Loadr
                     break;
                 case "2":
                     SearchResult albumId = await deezerSearcher.Search(searchParam, SearchType.Album);
-                    var i = await deezerDownloader.ProcessAlbum(albumId.Id, albumId.Json);
+                    var i = await deezerDownloader.ProcessAlbum(albumId.Id);
                     break;
                 case "3":
                     SearchResult artistId = await deezerSearcher.Search(searchParam, SearchType.Artist);

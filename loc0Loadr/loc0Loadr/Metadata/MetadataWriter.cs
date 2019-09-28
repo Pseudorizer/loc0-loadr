@@ -13,7 +13,7 @@ using Picture = TagLib.Picture;
 using PictureType = TagLib.PictureType;
 using Tag = TagLib.Id3v2.Tag;
 
-namespace loc0Loadr
+namespace loc0Loadr.Metadata
 {
     internal class MetadataWriter
     {
@@ -207,6 +207,11 @@ namespace loc0Loadr
                             year = yearSplit[0];
                         }
                     }
+
+                    if (_albumInfo.AlbumTags.Type == "Compilation" || _albumInfo.AlbumTags.Type == "Playlist")
+                    {
+                        comments["COMPILATION"] = new VorbisCommentValues("1");
+                    }
                     
                     comments.Date = new VorbisCommentValues(year ?? "");
                     comments["ORIGINALDATE"] = new VorbisCommentValues(_albumInfo.AlbumTags.ReleaseDate ?? "");
@@ -230,13 +235,13 @@ namespace loc0Loadr
                     comments["EXPLICIT"] = new VorbisCommentValues(_trackInfo.TrackTags.ExplicitLyrics ?? "0");
                     comments["REPLAYGAIN_TRACK_GAIN"] = new VorbisCommentValues(_trackInfo.TrackTags.Gain ?? ""); 
                     
-                    Helpers.AddTagIfNotNull(comments, "COMPOSER", _trackInfo.TrackTags.Contributors.Composers);
-                    Helpers.AddTagIfNotNull(comments, "PUBLISHER", _trackInfo.TrackTags.Contributors.Publishers);
-                    Helpers.AddTagIfNotNull(comments, "PRODUCER", _trackInfo.TrackTags.Contributors.Producers);
-                    Helpers.AddTagIfNotNull(comments, "ENGINEER", _trackInfo.TrackTags.Contributors.Engineers);
-                    Helpers.AddTagIfNotNull(comments, "WRITER", _trackInfo.TrackTags.Contributors.Writers);
-                    Helpers.AddTagIfNotNull(comments, "MIXER", _trackInfo.TrackTags.Contributors.Mixers);
-                    Helpers.AddTagIfNotNull(comments, "AUTHOR", _trackInfo.TrackTags.Contributors.Authors);
+                    MetadataHelpers.AddTagIfNotNull(comments, "COMPOSER", _trackInfo.TrackTags.Contributors.Composers);
+                    MetadataHelpers.AddTagIfNotNull(comments, "PUBLISHER", _trackInfo.TrackTags.Contributors.Publishers);
+                    MetadataHelpers.AddTagIfNotNull(comments, "PRODUCER", _trackInfo.TrackTags.Contributors.Producers);
+                    MetadataHelpers.AddTagIfNotNull(comments, "ENGINEER", _trackInfo.TrackTags.Contributors.Engineers);
+                    MetadataHelpers.AddTagIfNotNull(comments, "WRITER", _trackInfo.TrackTags.Contributors.Writers);
+                    MetadataHelpers.AddTagIfNotNull(comments, "MIXER", _trackInfo.TrackTags.Contributors.Mixers);
+                    MetadataHelpers.AddTagIfNotNull(comments, "AUTHOR", _trackInfo.TrackTags.Contributors.Authors);
                 }
 
                 if (_trackInfo?.Lyrics != null)
@@ -282,7 +287,7 @@ namespace loc0Loadr
                     tags.Pictures = new IPicture[] {attachedPictureFrame};
                 }
                 
-                tags.AddFrame(Helpers.BuildTextInformationFrame("TMED", "Digital Media"));
+                tags.AddFrame(MetadataHelpers.BuildTextInformationFrame("TMED", "Digital Media"));
 
                 if (_trackInfo?.TrackTags != null)
                 {
@@ -314,16 +319,16 @@ namespace loc0Loadr
                         tags.BeatsPerMinute = uint.Parse(bpm);
                     }
                     
-                    tags.AddFrame(Helpers.BuildTextInformationFrame("TSRC", _trackInfo.TrackTags.Isrc));
-                    tags.AddFrame(Helpers.BuildTextInformationFrame("TPUB", _trackInfo.TrackTags.Contributors.Publishers));
-                    tags.AddFrame(Helpers.BuildTextInformationFrame("TLEN", _trackInfo.TrackTags.Length));
-                    tags.AddFrame(Helpers.BuildUserTextInformationFrame("EXPLICIT", _trackInfo.TrackTags.ExplicitLyrics));
-                    tags.AddFrame(Helpers.BuildUserTextInformationFrame("REPLAYGAIN_TRACK_GAIN", _trackInfo.TrackTags.Gain));
-                    tags.AddFrame(Helpers.BuildUserTextInformationFrame("WRITERS", _trackInfo.TrackTags.Contributors.Writers));
-                    tags.AddFrame(Helpers.BuildUserTextInformationFrame("AUTHORS", _trackInfo.TrackTags.Contributors.Authors));
-                    tags.AddFrame(Helpers.BuildUserTextInformationFrame("TIPL", "PRODUCERS", _trackInfo.TrackTags.Contributors.Publishers));
-                    tags.AddFrame(Helpers.BuildUserTextInformationFrame("TIPL", "ENGINEERS", _trackInfo.TrackTags.Contributors.Engineers));
-                    tags.AddFrame(Helpers.BuildUserTextInformationFrame("TIPL", "MIXERS", _trackInfo.TrackTags.Contributors.Mixers));
+                    tags.AddFrame(MetadataHelpers.BuildTextInformationFrame("TSRC", _trackInfo.TrackTags.Isrc));
+                    tags.AddFrame(MetadataHelpers.BuildTextInformationFrame("TPUB", _trackInfo.TrackTags.Contributors.Publishers));
+                    tags.AddFrame(MetadataHelpers.BuildTextInformationFrame("TLEN", _trackInfo.TrackTags.Length));
+                    tags.AddFrame(MetadataHelpers.BuildUserTextInformationFrame("EXPLICIT", _trackInfo.TrackTags.ExplicitLyrics));
+                    tags.AddFrame(MetadataHelpers.BuildUserTextInformationFrame("REPLAYGAIN_TRACK_GAIN", _trackInfo.TrackTags.Gain));
+                    tags.AddFrame(MetadataHelpers.BuildUserTextInformationFrame("WRITERS", _trackInfo.TrackTags.Contributors.Writers));
+                    tags.AddFrame(MetadataHelpers.BuildUserTextInformationFrame("AUTHORS", _trackInfo.TrackTags.Contributors.Authors));
+                    tags.AddFrame(MetadataHelpers.BuildUserTextInformationFrame("TIPL", "PRODUCERS", _trackInfo.TrackTags.Contributors.Publishers));
+                    tags.AddFrame(MetadataHelpers.BuildUserTextInformationFrame("TIPL", "ENGINEERS", _trackInfo.TrackTags.Contributors.Engineers));
+                    tags.AddFrame(MetadataHelpers.BuildUserTextInformationFrame("TIPL", "MIXERS", _trackInfo.TrackTags.Contributors.Mixers));
                 }
 
                 if (_albumInfo?.AlbumTags != null)
@@ -341,6 +346,11 @@ namespace loc0Loadr
                         tags.DiscCount = uint.Parse(_albumInfo.AlbumTags.NumberOfDiscs);
                     }
 
+                    if (_albumInfo.AlbumTags.Type == "Compilation" || _albumInfo.AlbumTags.Type == "Playlist")
+                    {
+                        tags.IsCompilation = true;
+                    }
+
                     tags.Copyright = _albumInfo.AlbumTags.Copyright;
 
                     string year = _albumInfo.AlbumTags.ReleaseDate;
@@ -355,9 +365,9 @@ namespace loc0Loadr
                         }
                     }
                     
-                    tags.AddFrame(Helpers.BuildTextInformationFrame("TPUB", _albumInfo.AlbumTags.Label));
-                    tags.AddFrame(Helpers.BuildTextInformationFrame("TDOR", _albumInfo.AlbumTags.ReleaseDate));
-                    tags.AddFrame(Helpers.BuildUserTextInformationFrame("UPC", _albumInfo.AlbumTags.Upc));
+                    tags.AddFrame(MetadataHelpers.BuildTextInformationFrame("TPUB", _albumInfo.AlbumTags.Label));
+                    tags.AddFrame(MetadataHelpers.BuildTextInformationFrame("TDOR", _albumInfo.AlbumTags.ReleaseDate));
+                    tags.AddFrame(MetadataHelpers.BuildUserTextInformationFrame("UPC", _albumInfo.AlbumTags.Upc));
                 }
 
                 if (_trackInfo?.Lyrics != null)

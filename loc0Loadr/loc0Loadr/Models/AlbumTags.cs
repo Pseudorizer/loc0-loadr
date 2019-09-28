@@ -43,7 +43,7 @@ namespace loc0Loadr.Models
         public Genres Genres { get; set; }
 
         private string _type;
-        [JsonProperty("record_type")]
+        [JsonProperty("__TYPE__")]
         public string Type{
             get => _type;
             set
@@ -51,6 +51,10 @@ namespace loc0Loadr.Models
                 if (string.Equals("ep", value, StringComparison.OrdinalIgnoreCase))
                 {
                     _type = "EP";
+                }
+                else if (string.Equals("compile", value, StringComparison.OrdinalIgnoreCase))
+                {
+                    _type = "Compilation";
                 }
                 else if (string.IsNullOrWhiteSpace(value))
                 {

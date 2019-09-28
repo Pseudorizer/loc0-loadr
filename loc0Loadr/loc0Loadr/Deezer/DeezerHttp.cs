@@ -10,7 +10,7 @@ using Konsole;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace loc0Loadr
+namespace loc0Loadr.Deezer
 {
     internal class DeezerHttp : IDisposable
     {
@@ -35,7 +35,7 @@ namespace loc0Loadr
         public async Task<bool> GetApiToken()
         {
             Console.WriteLine("Grabbing API token...");
-            using (FormUrlEncodedContent formContent = Helpers.BuildDeezerApiContent("", "deezer.getUserData"))
+            using (FormUrlEncodedContent formContent = DeezerHelpers.BuildDeezerApiContent("", "deezer.getUserData"))
             {
                 using (HttpResponseMessage apiRequest = await _httpClient.PostAsync(ApiUrl, formContent))
                 {
@@ -77,7 +77,7 @@ namespace loc0Loadr
 
         public async Task<JObject> HitUnofficialApi(string method, JObject data, int retries = 3)
         {
-            string queryString = await Helpers.BuildDeezerApiQueryString(_apiToken, method);
+            string queryString = await DeezerHelpers.BuildDeezerApiQueryString(_apiToken, method);
             string url = $"{ApiUrl}?{queryString}";
 
             string bodyData = JsonConvert.SerializeObject(data);
