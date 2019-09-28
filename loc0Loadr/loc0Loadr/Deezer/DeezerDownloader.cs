@@ -387,6 +387,7 @@ namespace loc0Loadr.Deezer
             string trackTitle = trackInfo.TrackTags.Title.SanitseString();
             string discNumber = trackInfo.TrackTags.DiscNumber.SanitseString();
             string trackNumber = trackInfo.TrackTags.TrackNumber.SanitseString().PadNumber();
+            string totalDiscs = albumInfo.AlbumTags.NumberOfDiscs;
 
             var downloadPath = Configuration.GetValue<string>("downloadLocation");
             string extension = audioQuality == AudioQuality.Flac
@@ -396,7 +397,7 @@ namespace loc0Loadr.Deezer
             string filename = $"{trackNumber} - {trackTitle}{extension}";
             string directoryPath = $@"{artist}\{albumTitle} ({type})\";
 
-            if (int.Parse(discNumber) > 1)
+            if (int.Parse(totalDiscs) > 1)
             {
                 directoryPath += $@"Disc {discNumber}\";
             }
