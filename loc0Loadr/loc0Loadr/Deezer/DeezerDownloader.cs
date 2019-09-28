@@ -261,7 +261,7 @@ namespace loc0Loadr.Deezer
                 $"\nDownloading {albumInfo.AlbumTags.Artists[0].Name} - {trackInfo.TrackTags.Title} | Quality: {DeezerHelpers.AudioQualityToOutputString[qualityToUse]}";
 
             trackProgress.Next($"{trackProgressTitle} | Getting save location");
-            string saveLocation = BuildSaveLocation(trackInfo, albumInfo, qualityToUse);
+            string saveLocation = DeezerHelpers.BuildSaveLocation(trackInfo, albumInfo, qualityToUse);
             string saveLocationDirectory = Path.GetDirectoryName(saveLocation);
             string tempTrackPath = DeezerHelpers.GetTempTrackPath(saveLocationDirectory, trackInfo.TrackTags.Id);
 
@@ -289,26 +289,10 @@ namespace loc0Loadr.Deezer
                 trackProgress.Refresh(0, $"{trackProgressTitle} | Failed to write tags");
             }
 
-            RenameFiles(tempTrackPath, saveLocation, saveLocationDirectory);
+            DeezerHelpers.RenameFiles(tempTrackPath, saveLocation, saveLocationDirectory);
 
             trackProgress.Next($"{trackProgressTitle} | Complete");
             return true;
-        }
-
-        private static void RenameFiles(string tempTrackPath, string saveLocation, string saveLocationDirectory)
-        {
-            File.Move(tempTrackPath, saveLocation);
-
-            string tempLyricFilePath = Path.Combine(saveLocationDirectory,
-                Path.GetFileNameWithoutExtension(tempTrackPath) + ".lrc");
-
-            if (File.Exists(tempLyricFilePath))
-            {
-                string properLyricFilePath =
-                    Path.Combine(saveLocationDirectory, Path.GetFileNameWithoutExtension(saveLocation) + ".lrc");
-
-                File.Move(tempLyricFilePath, properLyricFilePath);
-            }
         }
 
         private async Task<TrackInfo> GetTrackInfo(string id)
@@ -376,34 +360,6 @@ namespace loc0Loadr.Deezer
 
                 return AudioQuality.None;
             }
-        }
-
-        private string BuildSaveLocation(TrackInfo trackInfo, AlbumInfo albumInfo, AudioQuality audioQuality)
-        {
-            string artist = albumInfo.AlbumTags.Artists[0].Name.SanitseString();
-            string type = albumInfo.AlbumTags.Type.SanitseString();
-            string albumTitle = albumInfo.AlbumTags.Title.SanitseString();
-            string trackTitle = trackInfo.TrackTags.Title.SanitseString();
-            string discNumber = trackInfo.TrackTags.DiscNumber.SanitseString();
-            string trackNumber = trackInfo.TrackTags.TrackNumber.SanitseString().PadNumber();
-            string totalDiscs = albumInfo.AlbumTags.NumberOfDiscs;
-
-            var downloadPath = Configuration.GetValue<string>("downloadLocation");
-            string extension = audioQuality == AudioQuality.Flac
-                ? ".flac"
-                : ".mp3";
-
-            string filename = $"{trackNumber} - {trackTitle}{extension}";
-            string directoryPath = $@"{artist}\{albumTitle} ({type})\";
-
-            if (int.Parse(totalDiscs) > 1)
-            {
-                directoryPath += $@"Disc {discNumber}\";
-            }
-
-            string savePath = Path.Combine(downloadPath, directoryPath, filename);
-
-            return savePath;
         }
 
         private async Task<byte[]> GetDecryptedBytes(TrackInfo trackInfo, AudioQuality audioQuality, IProgressBar trackProgress, string progressTitle)

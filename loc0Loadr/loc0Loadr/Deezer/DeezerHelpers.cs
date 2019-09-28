@@ -124,5 +124,65 @@ namespace loc0Loadr.Deezer
 
             return tempFilePath;
         }
+
+        public static void RenameFiles(string tempTrackPath, string saveLocation, string saveLocationDirectory)
+        {
+            try
+            {
+                File.Move(tempTrackPath, saveLocation);
+            }
+            catch (IOException ex)
+            {
+                Console.WriteLine(ex.Message);
+                Helpers.RedMessage($"Failed to rename {tempTrackPath} to {saveLocation}");
+            }
+
+            string tempLyricFilePath = Path.Combine(saveLocationDirectory,
+                Path.GetFileNameWithoutExtension(tempTrackPath) + ".lrc");
+
+            if (File.Exists(tempLyricFilePath))
+            {
+                string properLyricFilePath =
+                    Path.Combine(saveLocationDirectory, Path.GetFileNameWithoutExtension(saveLocation) + ".lrc");
+
+                try
+                {
+                    File.Move(tempLyricFilePath, properLyricFilePath);
+                }
+                catch (IOException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    Helpers.RedMessage($"Failed to rename {tempLyricFilePath} to {properLyricFilePath}");
+                }
+            }
+        }
+
+        public static string BuildSaveLocation(TrackInfo trackInfo, AlbumInfo albumInfo, AudioQuality audioQuality)
+        {
+            string artist = albumInfo.AlbumTags.Artists[0].Name.SanitseString();
+            string type = albumInfo.AlbumTags.Type.SanitseString();
+            string albumTitle = albumInfo.AlbumTags.Title.SanitseString();
+            string trackTitle = trackInfo.TrackTags.Title.SanitseString();
+            string discNumber = trackInfo.TrackTags.DiscNumber.SanitseString();
+            string trackNumber = trackInfo.TrackTags.TrackNumber.SanitseString().PadNumber();
+            string totalDiscs = albumInfo.AlbumTags.NumberOfDiscs;
+
+            var downloadPath = Configuration.GetValue<string>("downloadLocation");
+            string extension = audioQuality == AudioQuality.Flac
+                ? ".flac"
+                : ".mp3";
+
+            string filename = $"{trackNumber} - {trackTitle}{extension}";
+            string directoryPath = $@"{artist}\{albumTitle} ({type})\";
+
+            if (int.Parse(totalDiscs) > 1)
+            {
+                directoryPath += $@"Disc {discNumber}\";
+            }
+
+            string savePath = Path.Combine(downloadPath, directoryPath, filename);
+
+            return savePath;
+        }
     }
 }

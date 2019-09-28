@@ -35,7 +35,7 @@ namespace loc0Loadr.Metadata
 
         public static void AddTagIfNotNull(VorbisComment comments, string key, params string[] values)
         {
-            if (values.Any(string.IsNullOrWhiteSpace))
+            if (values == null || values.Any(string.IsNullOrWhiteSpace))
             {
                 return;
             }

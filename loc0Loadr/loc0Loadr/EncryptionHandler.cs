@@ -66,15 +66,15 @@ namespace loc0Loadr
 
         private static IEnumerable<Worker> GetWorkers(long streamLength)
         { // Thanks to Chimera for the math!
-            const int chunk = 6144;
-            const int workersCount = 4;
+            const int numberOfWorkers = 4;
+            const int chunk = (numberOfWorkers - 1) * 2048;
 
             long totalNumberOfChunks = streamLength / chunk;
-            long chunksPerWorker = totalNumberOfChunks / workersCount;
-            long subTotal = chunksPerWorker * workersCount * chunk;
+            long chunksPerWorker = totalNumberOfChunks / numberOfWorkers;
+            long subTotal = chunksPerWorker * numberOfWorkers * chunk;
             long remainingBytes = streamLength - subTotal;
 
-            for (var i = 0; i < workersCount; i++)
+            for (var i = 0; i < numberOfWorkers; i++)
             {
                 var worker = new Worker
                 {
@@ -83,7 +83,7 @@ namespace loc0Loadr
                     OrderId = i
                 };
 
-                if (i + 1 == workersCount)
+                if (i + 1 == numberOfWorkers)
                 {
                     worker.EndOffset += remainingBytes;
                 }
