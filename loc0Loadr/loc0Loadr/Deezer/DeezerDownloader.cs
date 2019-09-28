@@ -128,60 +128,6 @@ namespace loc0Loadr.Deezer
             return AlbumInfo.BuildAlbumInfo(albumJson, officialAlbumJson);
         }
 
-        private async Task<ICollection<bool>> StartParallelDownloads(IReadOnlyCollection<JObject> songs, AlbumInfo albumInfo)
-        {
-            var maxConcurrentDownloads = Configuration.GetValue<int>("maxConcurrentDownloads");
-
-            if (maxConcurrentDownloads <= 0)
-            {
-                maxConcurrentDownloads = 3;
-            }
-
-            var results = new List<bool>();
-            var tasks = new List<Task>();
-
-            int songsCount = songs.Count;
-
-            var progressBar = new ProgressBar(PbStyle.SingleLine, songsCount);
-            var complete = 0;
-            progressBar.Refresh(complete, $"Tracks processed {complete}/{songsCount}");
-            
-            var throttler = new SemaphoreSlim(maxConcurrentDownloads);
-
-            foreach (JObject song in songs)
-            {
-                await throttler.WaitAsync();
-
-                tasks.Add(
-                    Task.Run(async () =>
-                    {
-                        try
-                        {
-                            var trackId = song["SNG_ID"].Value<string>();
-
-                            bool downloadResult = await ProcessTrack(trackId, albumInfo);
-
-                            complete++;
-                            progressBar.Refresh(complete, $"Tracks processed {complete}/{songsCount}");
-
-                            results.Add(downloadResult);
-
-                        }
-                        finally
-                        {
-                            // ReSharper disable once AccessToDisposedClosure
-                            throttler.Release();
-                        }
-                    }));
-            }
-
-            await Task.WhenAll(tasks);
-
-            throttler.Dispose();
-            
-            return results;
-        }
-
         public async Task<bool> ProcessPlaylist(string id) // i think properties for building filepaths need to be separated into their own type
         {
             JObject e = await GetPlaylistInfo(id);
@@ -235,6 +181,60 @@ namespace loc0Loadr.Deezer
             }
 
             return playlistJson;
+        }
+
+        private async Task<ICollection<bool>> StartParallelDownloads(IReadOnlyCollection<JObject> songs, AlbumInfo albumInfo)
+        {
+            var maxConcurrentDownloads = Configuration.GetValue<int>("maxConcurrentDownloads");
+
+            if (maxConcurrentDownloads <= 0)
+            {
+                maxConcurrentDownloads = 3;
+            }
+
+            var results = new List<bool>();
+            var tasks = new List<Task>();
+
+            int songsCount = songs.Count;
+
+            var progressBar = new ProgressBar(PbStyle.SingleLine, songsCount);
+            var complete = 0;
+            progressBar.Refresh(complete, $"Tracks processed {complete}/{songsCount}");
+            
+            var throttler = new SemaphoreSlim(maxConcurrentDownloads);
+
+            foreach (JObject song in songs)
+            {
+                await throttler.WaitAsync();
+
+                tasks.Add(
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var trackId = song["SNG_ID"].Value<string>();
+
+                            bool downloadResult = await ProcessTrack(trackId, albumInfo);
+
+                            complete++;
+                            progressBar.Refresh(complete, $"Tracks processed {complete}/{songsCount}");
+
+                            results.Add(downloadResult);
+
+                        }
+                        finally
+                        {
+                            // ReSharper disable once AccessToDisposedClosure
+                            throttler.Release();
+                        }
+                    }));
+            }
+
+            await Task.WhenAll(tasks);
+
+            throttler.Dispose();
+            
+            return results;
         }
 
         public async Task<bool> ProcessTrack(string id, JObject trackJson)
