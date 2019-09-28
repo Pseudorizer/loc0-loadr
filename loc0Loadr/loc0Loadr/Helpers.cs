@@ -1,16 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using FlacLibSharp;
-using loc0Loadr.Enums;
-using Newtonsoft.Json.Linq;
-using TagLib;
-using TagLib.Id3v2;
-using File = System.IO.File;
 
 namespace loc0Loadr
 {

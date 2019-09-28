@@ -8,7 +8,6 @@ using Konsole;
 using loc0Loadr.Enums;
 using loc0Loadr.Metadata;
 using loc0Loadr.Models;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using File = System.IO.File;
 
