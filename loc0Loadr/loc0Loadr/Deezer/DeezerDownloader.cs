@@ -77,7 +77,7 @@ namespace loc0Loadr.Deezer
             {
                 albumInfo = await GetAlbumInfo(id);
                 
-                if (albumInfo == null)
+                if (albumInfo?.Songs == null)
                 {
                     Helpers.RedMessage("Failed to get album info");
                     return false;
@@ -86,55 +86,9 @@ namespace loc0Loadr.Deezer
 
             Console.WriteLine($"\nDownloading {albumInfo.AlbumTags.Title} ({albumInfo.AlbumTags.Type})");
 
-            var results = new List<bool>();
-            var tasks = new List<Task>();
-
-            var maxConcurrentDownloads = Configuration.GetValue<int>("maxConcurrentDownloads");
-
-            if (maxConcurrentDownloads <= 0)
-            {
-                maxConcurrentDownloads = 3;
-            }
-
-            var throttler = new SemaphoreSlim(maxConcurrentDownloads);
-
             List<JObject> songs = albumInfo.Songs.Children<JObject>().ToList();
-            int songsCount = songs.Count;
 
-            var progressBar = new ProgressBar(PbStyle.SingleLine, songsCount);
-            var complete = 0;
-            progressBar.Refresh(complete, $"Tracks processed {complete}/{songsCount}");
-
-            foreach (JObject albumInfoSong in songs)
-            {
-                await throttler.WaitAsync();
-
-                tasks.Add(
-                    Task.Run(async () =>
-                    {
-                        try
-                        {
-                            var trackId = albumInfoSong["SNG_ID"].Value<string>();
-
-                            bool downloadResult = await ProcessTrack(trackId, albumInfo);
-
-                            complete++;
-                            progressBar.Refresh(complete, $"Tracks processed {complete}/{songsCount}");
-
-                            results.Add(downloadResult);
-
-                        }
-                        finally
-                        {
-                            // ReSharper disable once AccessToDisposedClosure
-                            throttler.Release();
-                        }
-                    }));
-            }
-
-            await Task.WhenAll(tasks);
-
-            throttler.Dispose();
+            var results = await StartParallelDownloads(songs, albumInfo);
 
             int downloadsSucceed = results.Count(x => x);
 
@@ -174,13 +128,90 @@ namespace loc0Loadr.Deezer
             return AlbumInfo.BuildAlbumInfo(albumJson, officialAlbumJson);
         }
 
-        public async Task<bool> ProcessPlaylist(string id)
+        private async Task<ICollection<bool>> StartParallelDownloads(IReadOnlyCollection<JObject> songs, AlbumInfo albumInfo)
         {
-            var e = await GetPlaylistInfo(id);
+            var maxConcurrentDownloads = Configuration.GetValue<int>("maxConcurrentDownloads");
+
+            if (maxConcurrentDownloads <= 0)
+            {
+                maxConcurrentDownloads = 3;
+            }
+
+            var results = new List<bool>();
+            var tasks = new List<Task>();
+
+            int songsCount = songs.Count;
+
+            var progressBar = new ProgressBar(PbStyle.SingleLine, songsCount);
+            var complete = 0;
+            progressBar.Refresh(complete, $"Tracks processed {complete}/{songsCount}");
+            
+            var throttler = new SemaphoreSlim(maxConcurrentDownloads);
+
+            foreach (JObject song in songs)
+            {
+                await throttler.WaitAsync();
+
+                tasks.Add(
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var trackId = song["SNG_ID"].Value<string>();
+
+                            bool downloadResult = await ProcessTrack(trackId, albumInfo);
+
+                            complete++;
+                            progressBar.Refresh(complete, $"Tracks processed {complete}/{songsCount}");
+
+                            results.Add(downloadResult);
+
+                        }
+                        finally
+                        {
+                            // ReSharper disable once AccessToDisposedClosure
+                            throttler.Release();
+                        }
+                    }));
+            }
+
+            await Task.WhenAll(tasks);
+
+            throttler.Dispose();
+            
+            return results;
+        }
+
+        public async Task<bool> ProcessPlaylist(string id) // i think properties for building filepaths need to be separated into their own type
+        {
+            JObject e = await GetPlaylistInfo(id);
+
+            if (e == null)
+            {
+                return false;
+            }
+
+            var playlistInfo = new AlbumInfo()
+            {
+                AlbumTags = e["results"]?["DATA"].ToObject<AlbumTags>() ?? new AlbumTags()
+            };
+
+            playlistInfo.AlbumTags.NumberOfTracks = e["results"]["SONGS"]?["count"].Value<string>();
+            playlistInfo.AlbumTags.Artists = new[] {new Artists {Name = "Various Artists"}};
+
+            if (e["results"]?["DATA"]?["TITLE"] != null)
+            {
+                playlistInfo.AlbumTags.Title = e["results"]["DATA"]["TITLE"].Value<string>();
+            }
+
+            var songs = e["results"]["SONGS"]["data"].Children<JObject>().ToList();
+
+            var results = await StartParallelDownloads(songs, playlistInfo);
+            
             return true;
         }
 
-        private async Task<AlbumInfo> GetPlaylistInfo(string id)
+        private async Task<JObject> GetPlaylistInfo(string id)
         {
             if (string.IsNullOrWhiteSpace(id) || id == "0")
             {
@@ -198,12 +229,12 @@ namespace loc0Loadr.Deezer
                 ["header"] = true
             });
             
-            if (playlistJson?["results"]?["DATA"] == null || playlistJson["results"]?["SONGS"]?["data"] == null) // i dont like this, it shouldnt care if DATA is missing
+            if (playlistJson["results"]?["SONGS"]?["data"] == null)
             {
                 return null;
             }
 
-            return null;
+            return playlistJson;
         }
 
         public async Task<bool> ProcessTrack(string id, JObject trackJson)

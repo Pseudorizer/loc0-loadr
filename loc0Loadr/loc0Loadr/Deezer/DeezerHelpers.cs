@@ -165,7 +165,7 @@ namespace loc0Loadr.Deezer
             string trackTitle = trackInfo.TrackTags.Title.SanitseString();
             string discNumber = trackInfo.TrackTags.DiscNumber.SanitseString();
             string trackNumber = trackInfo.TrackTags.TrackNumber.SanitseString().PadNumber();
-            string totalDiscs = albumInfo.AlbumTags.NumberOfDiscs;
+            string totalDiscs = albumInfo.AlbumTags.NumberOfDiscs ?? "1";
 
             var downloadPath = Configuration.GetValue<string>("downloadLocation");
             string extension = audioQuality == AudioQuality.Flac
