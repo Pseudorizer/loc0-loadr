@@ -35,12 +35,12 @@ namespace loc0Loadr.Metadata
 
         public static void AddTagIfNotNull(VorbisComment comments, string key, params string[] values)
         {
-            if (values == null)
+            if (values.Any(string.IsNullOrWhiteSpace))
             {
                 return;
             }
 
-            comments[key] = new VorbisCommentValues(values.Where(x => x != null));
+            comments[key] = new VorbisCommentValues(values);
         }
     }
 }
