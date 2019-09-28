@@ -6,8 +6,8 @@ namespace loc0Loadr
 {
     internal class AlbumInfo
     {
-        public AlbumTags AlbumTags { get; private set; }
-        public JArray Songs { get; private set; }
+        public AlbumTags AlbumTags { get; set; }
+        public JArray Songs { get; set; }
 
         public static AlbumInfo BuildAlbumInfo(JObject albumInfoJObject, JObject officialAlbumInfo)
         {

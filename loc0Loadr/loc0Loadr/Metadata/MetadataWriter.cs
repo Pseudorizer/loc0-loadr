@@ -194,9 +194,13 @@ namespace loc0Loadr.Metadata
                 if (_albumInfo?.AlbumTags != null)
                 {
                     comments.Album = new VorbisCommentValues(_albumInfo.AlbumTags.Title ?? "");
-                    comments.Genre = new VorbisCommentValues(_albumInfo.AlbumTags.Genres.GenreData.Select(x => x.Name));
 
-                    string year = _albumInfo.AlbumTags.ReleaseDate;
+                    if (_albumInfo.AlbumTags?.Genres?.GenreData != null)
+                    {
+                        comments.Genre = new VorbisCommentValues(_albumInfo.AlbumTags.Genres.GenreData.Select(x => x.Name));
+                    }
+
+                    string year = _albumInfo.AlbumTags.ReleaseDate ?? "";
 
                     if (!string.IsNullOrWhiteSpace(year))
                     {

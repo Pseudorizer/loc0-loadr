@@ -79,5 +79,19 @@ namespace loc0Loadr
                 ? $"0{word}" 
                 : word;
         }
+
+        public static string GetRandomChars(int count)
+        {
+            const string chars = "abcdefghijklmnopqrstuvwxyz1234567890";
+            string randomString = string.Empty;
+
+            for (var i = 0; i < count; i++)
+            { 
+                int charsIndex = new Random().Next(0, chars.Length);
+                randomString += chars[charsIndex];
+            }
+
+            return randomString;
+        }
     }
 }

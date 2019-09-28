@@ -165,7 +165,7 @@ namespace loc0Loadr.Deezer
             return null;
         }
 
-        public async Task<byte[]> DownloadTrack(string url, IProgressBar trackProgres, string title, int retries = 3)
+        public async Task<byte[]> DownloadTrack(string url, IProgressBar trackProgress, string title, int retries = 3)
         {
             var attempts = 1;
 
@@ -177,7 +177,7 @@ namespace loc0Loadr.Deezer
                     {
                         if (downloadResponse.IsSuccessStatusCode && downloadResponse.Content.Headers.ContentLength.HasValue)
                         {
-                            return await DownloadWithProgress(downloadResponse, trackProgres, title);
+                            return await DownloadWithProgress(downloadResponse, trackProgress, title);
                         }
                     }
                 }
@@ -187,7 +187,7 @@ namespace loc0Loadr.Deezer
                 }
 
                 attempts++;
-                Helpers.RedMessage("Request failed, waiting 5s...");
+                trackProgress.Next("Request failed, waiting 5s...");
                 await Task.Delay(5000);
             }
 

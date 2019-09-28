@@ -240,13 +240,17 @@ namespace loc0Loadr.Deezer
             {
                 string albumId = trackInfo.TrackTags.AlbumId;
 
-                albumInfo = await GetAlbumInfo(albumId);
-
-                if (albumInfo == null)
+                albumInfo = await GetAlbumInfo(albumId) ?? new AlbumInfo
                 {
-                    trackProgress.Refresh(0, $"{id} | Failed to get album info");
-                    return false; // this shouldn't return, it shouldn't care, force album info to be null at some point and see what needs fixing
-                }
+                    AlbumTags = new AlbumTags
+                    {
+                        Artists = new []{new Artists {Name = "Unknown Artist"}},
+                        Type = "Unknown",
+                        Title = albumId ?? "Unknown Collection " + Helpers.GetRandomChars(5),
+                        NumberOfDiscs = "0",
+                        NumberOfTracks = "0"
+                    }
+                };
             }
 
             AudioQuality qualityToUse = FindAvailableAudioQuality(trackInfo);
